@@ -1,21 +1,37 @@
-# ⚡ BLOCKVERSE V3.0 ULTIMATE
+# BLOCKVERSE V3.0 ULTIMATE
 
-Cyberpunk mini-game platform — 7 games, 50 achievements, 11 themes, battle pass.
+Cyberpunk Mini-Game Platform — 7 playable games, 50 achievements, 11 themes, Battle Pass, Lucky Wheel, Daily Quests.
 
-## 🎮 Features
+## 🎮 Games
+- 🐍 Snake
+- 🧩 2048
+- 🧠 Memory
+- ⭕ Tic Tac Toe (AI)
+- 💣 Minesweeper
+- 🧱 Tetris
+- 🟦 Block Blast
 
-- **7 Games**: Snake · 2048 · Memory · Tic Tac Toe · Tetris · Block Blast · Minesweeper
-- **50 Achievements** · **11 Cyberpunk Themes**
-- **Battle Pass S1** (100 levels) · **Lucky Wheel** · **Daily Quests**
-- **Shop** · **Save/Export/Import** · **10 Secret Codes**
-- **Pure Vanilla JS** · No frameworks · No CDN · 100% Offline
+## ✨ Features
+- 50 Achievements with rewards
+- 11 Cyberpunk Themes (free + premium)
+- Battle Pass 100 levels (free + premium track)
+- Lucky Wheel with jackpot
+- Daily Login Streak + 3 Quests
+- Player XP, Level, 9 Ranks (Bronze → Immortal)
+- VIP system (2x coins/XP, exclusive badge)
+- Save / Load / Export / Import
+- 10 Secret Codes
+- Promo Codes (WELCOME, BLOCKVERSE, NEON2026, CYBER)
+- FPS counter, Particle background, Holiday effects (Snow)
+- Mobile + Desktop, Touch + Keyboard
 
-## 🌐 Play Online
+## 🛠 Tech
+- Vanilla JavaScript (no frameworks)
+- HTML5 Canvas + Web Audio API
+- LocalStorage for persistence
+- 100% Offline
 
-Visit: `https://KRYZENSYS.github.io/blockverse/`
+## 🚀 Live
+Enable GitHub Pages: **Settings → Pages → Source: main / root**
 
-## 🛠 Build
-
-GitHub Actions combines `part1.html` … `part5.html` into `index.html`.
-
-Made with ❤️ · 2026
+URL: `https://KRYZENSYS.github.io/blockverse`
