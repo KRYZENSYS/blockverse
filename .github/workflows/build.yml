@@ -1,0 +1,26 @@
+name: Build Blockverse
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Combine parts into index.html
+        run: |
+          echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>BLOCKVERSE V3.0</title><meta name="description" content="Cyberpunk Mini-Game Platform"><meta name="theme-color" content="#050018"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 fill=%22%23050018%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%2248%22%3E⚡%3C/text%3E%3C/svg%3E">' > index.html
+          for f in part1.html part2.html part3.html part4.html part5.html; do
+            if [ -f "$f" ]; then
+              cat "$f" >> index.html
+              echo "" >> index.html
+            fi
+          done
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+          force_orphan: true
