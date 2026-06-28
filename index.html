@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#050018">
+<title>BLOCKVERSE V3.0</title>
+<meta name="description" content="Cyberpunk Mini-Game Platform - 7 games, 50 achievements, 11 themes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 fill=%22%23050018%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%2248%22%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<style></style></head><body><!-- PART 2: UTIL + STORE + AUDIO + 50 ACHIEVEMENTS -->
+<script>
+/* === UTIL === */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const ri=(a,b)=>Math.floor(rand(a,b+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+const fmt=n=>(n||0).toLocaleString('en-US');
+const uid=()=>Math.random().toString(36).slice(2,10);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* === STORE === */
+const Store={
+key:'blockverse_v3',d:null,
+def(){return{version:3,username:'Player_'+uid().slice(0,4).toUpperCase(),avatar:'🤖',title:'Newbie',clan:'',
+coins:500,diamonds:10,xp:0,level:1,rank:'Bronze',vip:false,vipUntil:0,
+energy:100,energyMax:100,energyRegen:60,streak:0,lastLogin:0,lastBonus:0,lastSpin:0,
+currentTheme:'cyberpunk',ownedThemes:['cyberpunk'],
+ownedAvatars:['🤖','😎','🦊','🐱','🐲','👾','🦄','🐼','🐸','🐯'],
+ownedFrames:['none'],ownedCursors:['default'],ownedPets:[],ownedTitles:['Newbie'],
+ownedEffects:[],ownedMusic:['silence'],ownedBackgrounds:['default'],
+equippedFrame:'none',equippedCursor:'default',equippedPet:null,
+equippedMusic:'silence',
+stats:{gamesPlayed:0,wins:0,losses:0,highestScore:0,totalScore:0,accuracy:0,
+playTime:0,combos:0,longestStreak:0,totalCoins:0,totalDiamonds:0,xpEarned:0,perGame:{}},
+achievements:{},secretCodes:[],battlePass:{xp:0,claimed:[],premium:false},
+season:1,dailyQuests:[],lastQuestGen:0,bestScores:{},news:{read:[]},
+unlockedGames:['snake','2048','memory','tictactoe','minesweeper'],
+hiddenGamesUnlocked:false,energyTime:Date.now(),promoUsed:[],
+createdAt:Date.now(),soundEnabled:true,musicEnabled:true,volume:0.5,
+devMode:false,showFPS:false,lowPower:false,lastBackup:0};},
+load(){try{const r=localStorage.getItem(this.key);this.d=r?{...this.def(),...JSON.parse(r)}:this.def();}catch(e){this.d=this.def();}return this.d;},
+save(){try{localStorage.setItem(this.key,JSON.stringify(this.d));}catch(e){Toast.show('❌ Save failed');}},
+reset(){if(!confirm('Reset all data? Cannot undo!'))return;localStorage.removeItem(this.key);this.d=this.def();this.save();location.reload();},
+export(){const b=new Blob([JSON.stringify(this.d,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='blockverse_'+Date.now()+'.json';a.click();Toast.show('💾 Saved!');},
+import(){const i=document.createElement('input');i.type='file';i.accept='application/json';i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{this.d={...this.def(),...JSON.parse(ev.target.result)};this.save();Toast.show('✅ Imported!','ok');UI.show('home');}catch(err){Toast.show('❌ Invalid file','err');}};r.readAsText(f);};i.click();},
+autoSave(){this.save();}
+};
+
+/* === AUDIO === */
+const Audio={
+ctx:null,init(){try{this.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}},
+beep(freq=440,dur=0.1,vol=0.2,type='sine'){
+if(!Store.d.soundEnabled)return;
+try{if(!this.ctx)this.init();if(!this.ctx)return;
+const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+o.type=type;o.frequency.value=freq;g.gain.value=vol*Store.d.volume;
+o.connect(g);g.connect(this.ctx.destination);o.start();
+g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+dur);
+o.stop(this.ctx.currentTime+dur);}catch(e){}},
+click(){this.beep(800,0.05,0.15,'square');},
+success(){this.beep(523,0.1);setTimeout(()=>this.beep(659,0.1),100);setTimeout(()=>this.beep(784,0.15),200);},
+fail(){this.beep(220,0.2,0.3,'sawtooth');},
+coin(){this.beep(1200,0.05);setTimeout(()=>this.beep(1500,0.05),50);},
+levelup(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.beep(f,0.15),i*100));},
+explosion(){this.beep(80,0.4,0.4,'sawtooth');},
+combo(){this.beep(880+Store.d.stats.combos*50,0.08);}
+};
+
+/* === TOAST === */
+const Toast={show(t,type=''){const z=document.getElementById('toast-zone');
+const e=document.createElement('div');e.className='toast '+type;e.textContent=t;
+z.appendChild(e);setTimeout(()=>e.remove(),2400);}};
+
+/* === FLOATING TEXT === */
+const Float={show(x,y,text,color='#00ff88'){const e=document.createElement('div');e.className='float';e.textContent=text;e.style.left=x+'px';e.style.top=y+'px';e.style.color=color;document.body.appendChild(e);setTimeout(()=>e.remove(),1500);}};
+
+/* === CONFETTI === */
+const Confetti={burst(x,y,n=30){for(let i=0;i<n;i++){const e=document.createElement('div');e.className='confetti';
+const c=pick(['#ff007a','#00f0ff','#ffe600','#00ff88','#b400ff']);
+e.style.background=c;e.style.left=(x+ri(-30,30))+'px';e.style.top=y+'px';
+e.style.animationDuration=(ri(15,30)/10)+'s';
+e.style.transform='rotate('+ri(0,360)+'deg)';
+document.body.appendChild(e);setTimeout(()=>e.remove(),2500);}}};
+
+/* === 50 ACHIEVEMENTS === */
+const ACHS=[
+{code:'FIRST_GAME',ic:'🎮',ti:'First Step',de:'Play your first game',rw:'+50 🪙 +20 XP',cond:d=>d.stats.gamesPlayed>=1},
+{code:'GAMES_10',ic:'🎯',ti:'Decade',de:'Play 10 games',rw:'+100 🪙',cond:d=>d.stats.gamesPlayed>=10},
+{code:'GAMES_100',ic:'💯',ti:'Century',de:'Play 100 games',rw:'+500 🪙 +5 💎',cond:d=>d.stats.gamesPlayed>=100},
+{code:'GAMES_500',ic:'🏆',ti:'Veteran',de:'Play 500 games',rw:'+2000 🪙 +50 💎 +VIP',cond:d=>d.stats.gamesPlayed>=500},
+{code:'WINS_10',ic:'🥇',ti:'Winner',de:'Win 10 games',rw:'+200 🪙',cond:d=>d.stats.wins>=10},
+{code:'WINS_100',ic:'👑',ti:'Champion',de:'Win 100 games',rw:'+1000 🪙',cond:d=>d.stats.wins>=100},
+{code:'SCORE_1K',ic:'⭐',ti:'1K Club',de:'Score 1000',rw:'+100 🪙',cond:d=>d.stats.highestScore>=1000},
+{code:'SCORE_10K',ic:'🌟',ti:'10K Club',de:'Score 10000',rw:'+500 🪙',cond:d=>d.stats.highestScore>=10000},
+{code:'SCORE_100K',ic:'💫',ti:'100K',de:'Score 100000',rw:'+5000 🪙 +10 💎',cond:d=>d.stats.highestScore>=100000},
+{code:'STREAK_3',ic:'🔥',ti:'3-Day Streak',de:'3-day login',rw:'+50 🪙',cond:d=>d.streak>=3},
+{code:'STREAK_7',ic:'🌋',ti:'Week Streak',de:'7-day login',rw:'+200 🪙',cond:d=>d.streak>=7},
+{code:'STREAK_30',ic:'🌟',ti:'Month Streak',de:'30-day',rw:'+1000 🪙 +VIP',cond:d=>d.streak>=30},
+{code:'LVL_5',ic:'5️⃣',ti:'Level 5',de:'Reach Lvl 5',rw:'+100 🪙',cond:d=>d.level>=5},
+{code:'LVL_10',ic:'🔟',ti:'Level 10',de:'Reach Lvl 10',rw:'+300 🪙',cond:d=>d.level>=10},
+{code:'LVL_25',ic:'💎',ti:'Level 25',de:'Reach Lvl 25',rw:'+1500 🪙 +5 💎',cond:d=>d.level>=25},
+{code:'LVL_50',ic:'👑',ti:'Level 50',de:'Reach Lvl 50',rw:'+5000 🪙 +20 💎',cond:d=>d.level>=50},
+{code:'COINS_1K',ic:'🪙',ti:'Rich',de:'Earn 1000 coins',rw:'+100 🪙',cond:d=>d.stats.totalCoins>=1000},
+{code:'COINS_10K',ic:'💰',ti:'Wealthy',de:'Earn 10000',rw:'+500 🪙',cond:d=>d.stats.totalCoins>=10000},
+{code:'COINS_100K',ic:'🏦',ti:'Tycoon',de:'Earn 100000',rw:'+5000 🪙 +10 💎',cond:d=>d.stats.totalCoins>=100000},
+{code:'DIAMONDS_10',ic:'💎',ti:'Gem Collector',de:'Earn 10 diamonds',rw:'+100 🪙',cond:d=>d.stats.totalDiamonds>=10},
+{code:'DIAMONDS_100',ic:'💠',ti:'Diamond Lord',de:'Earn 100 diamonds',rw:'+1000 🪙',cond:d=>d.stats.totalDiamonds>=100},
+{code:'RANK_SILVER',ic:'🥈',ti:'Silver',de:'Reach Silver',rw:'+200 🪙',cond:d=>['Silver','Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_GOLD',ic:'🥇',ti:'Gold',de:'Reach Gold',rw:'+500 🪙',cond:d=>['Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_PLATINUM',ic:'💠',ti:'Platinum',de:'Reach Platinum',rw:'+1000 🪙 +2 💎',cond:d=>['Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_DIAMOND',ic:'💎',ti:'Diamond',de:'Reach Diamond',rw:'+2500 🪙 +5 💎',cond:d=>['Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_MASTER',ic:'🎖',ti:'Master',de:'Reach Master',rw:'+5000 🪙 +10 💎',cond:d=>['Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_LEGEND',ic:'🌟',ti:'Legend',de:'Reach Legend',rw:'+10000 🪙 +25 💎 +VIP',cond:d=>['Legend','Immortal'].includes(d.rank)},
+{code:'RANK_IMMORTAL',ic:'⚡',ti:'Immortal',de:'Reach Immortal!',rw:'+50000 🪙 +100 💎 +Lifetime VIP',cond:d=>d.rank==='Immortal'},
+{code:'LUCKY_SPIN',ic:'🎰',ti:'Spinner',de:'Spin wheel 10 times',rw:'+100 🪙',cond:d=>(d.spinCount||0)>=10},
+{code:'SNAKE_MASTER',ic:'🐍',ti:'Snake Master',de:'500 in Snake',rw:'+200 🪙',cond:d=>(d.bestScores.snake||0)>=500},
+{code:'TETRIS_MASTER',ic:'🧱',ti:'Tetris Master',de:'5000 in Tetris',rw:'+300 🪙',cond:d=>(d.bestScores.tetris||0)>=5000},
+{code:'PUZZLE_MASTER',ic:'🧩',ti:'Puzzle Master',de:'10000 in 2048',rw:'+500 🪙',cond:d=>(d.bestScores['2048']||0)>=10000},
+{code:'MEMORY_MASTER',ic:'🧠',ti:'Memory Master',de:'500 in Memory',rw:'+200 🪙',cond:d=>(d.bestScores.memory||0)>=500},
+{code:'MINES_MASTER',ic:'💣',ti:'Minesweeper Pro',de:'500 in Minesweeper',rw:'+500 🪙',cond:d=>(d.bestScores.minesweeper||0)>=500},
+{code:'COMBO_5',ic:'⚡',ti:'Combo x5',de:'5-combo',rw:'+100 🪙',cond:d=>d.stats.combos>=5},
+{code:'COMBO_20',ic:'🌪',ti:'Combo x20',de:'20-combo',rw:'+500 🪙 +1 💎',cond:d=>d.stats.combos>=20},
+{code:'PURCHASE_FIRST',ic:'🛒',ti:'First Purchase',de:'Buy first item',rw:'+50 🪙',cond:d=>(d.shopCount||0)>=1},
+{code:'VIP_BUYER',ic:'💎',ti:'VIP',de:'Become VIP',rw:'+500 🪙',cond:d=>d.vip},
+{code:'SHOP_10',ic:'🏪',ti:'Shopaholic',de:'Buy 10 items',rw:'+200 🪙',cond:d=>(d.shopCount||0)>=10},
+{code:'SECRET_FOUND',ic:'🤫',ti:'Secret Finder',de:'3 secret codes',rw:'+500 🪙 +2 💎',cond:d=>d.secretCodes.length>=3},
+{code:'SECRET_MASTER',ic:'🕵',ti:'Easter Hunter',de:'All secrets',rw:'+5000 🪙',cond:d=>d.secretCodes.length>=10},
+{code:'THEME_COLLECTOR',ic:'🎨',ti:'Theme Lover',de:'5 themes',rw:'+200 🪙',cond:d=>d.ownedThemes.length>=5},
+{code:'BATTLE_PASS_50',ic:'🎫',ti:'BP Half',de:'BP level 50',rw:'+1000 🪙',cond:d=>(d.battlePass.xp/100)>=50},
+{code:'BATTLE_PASS_100',ic:'🏆',ti:'BP Complete',de:'BP level 100',rw:'+5000 🪙 +10 💎',cond:d=>(d.battlePass.xp/100)>=100},
+{code:'NIGHT_OWL',ic:'🦉',ti:'Night Owl',de:'Play 2-5 AM',rw:'+100 🪙',cond:()=>{const h=new Date().getHours();return h>=2&&h<5;}},
+{code:'EARLY_BIRD',ic:'🐦',ti:'Early Bird',de:'Play 5-7 AM',rw:'+100 🪙',cond:()=>{const h=new Date().getHours();return h>=5&&h<7;}},
+{code:'HOARDER',ic:'🐉',ti:'Hoarder',de:'10000 coins at once',rw:'+1000 🪙',cond:d=>d.coins>=10000},
+{code:'LUCKY_JACKPOT',ic:'💰',ti:'Jackpot!',de:'Hit jackpot',rw:'+1000 🪙',cond:d=>d.luckyJackpot},
+{code:'MARATHON',ic:'🏃',ti:'Marathon',de:'Play 1 hour total',rw:'+500 🪙',cond:d=>d.stats.playTime>=3600},
+{code:'HIDDEN_GAME',ic:'🔓',ti:'Hidden Master',de:'Unlock hidden games',rw:'+1000 🪙 +5 💎',cond:d=>d.hiddenGamesUnlocked},
+{code:'PET_OWNER',ic:'🐾',ti:'Pet Owner',de:'Buy a pet',rw:'+100 🪙',cond:d=>d.ownedPets.length>=1},
+{code:'GAMER',ic:'🎮',ti:'True Gamer',de:'10 different games',rw:'+500 🪙',cond:d=>Object.keys(d.stats.perGame||{}).length>=10},
+];
+const AchSys={
+check(){let n=0;ACHS.forEach(a=>{if(!Store.d.achievements[a.code]&&a.cond(Store.d)){
+Store.d.achievements[a.code]={date:Date.now()};
+const r=a.rw.match(/\+(\d+)\s*(🪙|💎|XP)/);
+if(r){if(r[2]==='🪙'){Store.d.coins+=+r[1];Store.d.stats.totalCoins+=+r[1];}
+else if(r[2]==='💎'){Store.d.diamonds+=+r[1];Store.d.stats.totalDiamonds+=+r[1];}
+else Store.d.xp+=+r[1];}
+n++;UI.toastUnlocked(a);}});
+if(n>0){Store.save();Player.checkRank();}}
+};
+</script>
+<!-- PART 3: PLAYER + DAILY + THEMES + WHEEL + BP + BG + MODAL -->
+<script>
+/* === PLAYER === */
+const Player={
+xpNeeded(l){return 100+l*50;},
+addXP(n,src=''){
+const mult=Store.d.vip?2:1;const amt=Math.floor(n*mult);
+Store.d.xp+=amt;Store.d.stats.xpEarned+=amt;
+let needed=this.xpNeeded(Store.d.level);
+while(Store.d.xp>=needed){Store.d.xp-=needed;Store.d.level++;needed=this.xpNeeded(Store.d.level);
+Audio.levelup();Confetti.burst(innerWidth/2,innerHeight/2,40);
+Toast.show('🎉 LEVEL UP! → Lvl '+Store.d.level,'ok');}
+this.checkRank();Store.save();UI.updateTop();},
+addCoins(n,src=''){
+const mult=Store.d.vip?2:1;const amt=Math.floor(n*mult);
+Store.d.coins+=amt;Store.d.stats.totalCoins+=amt;
+Float.show(innerWidth/2,innerHeight/3,'+'+amt+' 🪙','#ffe600');
+Audio.coin();Store.save();UI.updateTop();},
+addDiamonds(n,src=''){
+Store.d.diamonds+=n;Store.d.stats.totalDiamonds+=n;
+Float.show(innerWidth/2,innerHeight/3+30,'+'+n+' 💎','#00f0ff');
+Store.save();UI.updateTop();},
+addScore(game,score){
+Store.d.stats.gamesPlayed++;
+Store.d.stats.perGame[game]=(Store.d.stats.perGame[game]||0)+1;
+if(!Store.d.bestScores[game]||score>Store.d.bestScores[game])Store.d.bestScores[game]=score;
+if(score>Store.d.stats.highestScore)Store.d.stats.highestScore=score;
+Store.d.stats.totalScore+=score;
+Daily.progressQuest('play',1);Daily.progressQuest('win',1);Daily.progressQuest('score',{game,score});
+Store.save();UI.updateTop();AchSys.check();},
+checkRank(){
+const xp=Store.d.level*500+Store.d.stats.xpEarned;
+const ranks=['Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'];
+const reqs=[0,1000,5000,15000,40000,100000,250000,500000,1000000];
+let nr='Bronze';
+for(let i=0;i<reqs.length;i++)if(xp>=reqs[i])nr=ranks[i];
+if(nr!==Store.d.rank){Store.d.rank=nr;
+Toast.show('🏆 RANK UP! → '+nr,'ok');Audio.levelup();Confetti.burst(innerWidth/2,innerHeight/2,60);}
+Store.save();},
+spendEnergy(n){
+if(Store.d.energy<n){Toast.show('❌ No energy! Wait for regen.','err');return false;}
+Store.d.energy-=n;Store.d.energyTime=Date.now();Store.save();UI.updateTop();return true;},
+tickEnergy(){
+const now=Date.now();const elapsed=(now-Store.d.energyTime)/1000;
+const regen=Math.floor(elapsed/Store.d.energyRegen);
+if(regen>0){Store.d.energy=Math.min(Store.d.energyMax,Store.d.energy+regen);
+Store.d.energyTime=now;Store.save();UI.updateTop();}}
+};
+
+/* === DAILY === */
+const Daily={
+checkStreak(){const now=Date.now();const day=86400000;
+if(!Store.d.lastLogin)Store.d.streak=1;
+else if(now-Store.d.lastLogin>=day-3600000&&now-Store.d.lastLogin<day*2)Store.d.streak++;
+else if(now-Store.d.lastLogin>=day*2)Store.d.streak=1;
+Store.d.lastLogin=now;Store.save();},
+canClaim(){return Date.now()-Store.d.lastBonus>=86400000;},
+claim(){
+if(!this.canClaim()){const rem=86400-Math.floor((Date.now()-Store.d.lastBonus)/1000);
+const h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60);
+Toast.show('⏱ Next: '+h+'h '+m+'m','warn');return;}
+const r=50+Store.d.streak*20;Store.d.coins+=r;Store.d.stats.totalCoins+=r;
+Store.d.xp+=10;Store.d.lastBonus=Date.now();
+Store.save();Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,30);
+Toast.show('🎁 +'+r+' 🪙 (Streak: '+(Store.d.streak+1)+')','ok');Store.d.streak++;Store.save();UI.updateTop();AchSys.check();},
+genQuests(){
+if(Date.now()-Store.d.lastQuestGen<86400000&&Store.d.dailyQuests.length)return;
+const games=Object.keys(Store.d.stats.perGame||{});
+const g=games.length?pick(games):'snake';
+Store.d.dailyQuests=[
+{id:1,desc:'Play 3 games',cur:0,goal:3,rw:'+100 🪙 +30 XP',done:false},
+{id:2,desc:'Score 500 in '+g,cur:Store.d.bestScores[g]||0,goal:500,rw:'+150 🪙 +1 💎',done:false},
+{id:3,desc:'Win 1 game',cur:0,goal:1,rw:'+80 🪙',done:false}
+];
+Store.d.lastQuestGen=Date.now();Store.save();},
+progressQuest(type,val){
+this.genQuests();
+Store.d.dailyQuests.forEach(q=>{if(q.done)return;
+if(type==='play'&&(q.id===1||q.id===3)){q.cur+=val;if(q.cur>=q.goal)this._done(q);}
+else if(type==='win'&&q.id===3){q.cur+=val;if(q.cur>=q.goal)this._done(q);}
+else if(type==='score'&&val&&val.game){const m=q.desc.match(/in (\w+)/);if(m&&m[1]===val.game){q.cur=Math.max(q.cur,val.score);if(q.cur>=q.goal)this._done(q);}}
+});
+Store.save();},
+_done(q){q.done=true;Toast.show('✅ Quest: '+q.rw,'ok');Audio.success();
+q.rw.match(/\+(\d+)\s*(🪙|💎)/g)?.forEach(r=>{const m=r.match(/\+(\d+)\s*(🪙|💎)/);
+if(m[2]==='🪙'){Store.d.coins+=+m[1];Store.d.stats.totalCoins+=+m[1];}
+else{Store.d.diamonds+=+m[1];Store.d.stats.totalDiamonds+=+m[1];}});
+UI.updateTop();}
+};
+
+/* === THEMES === */
+const THEMES=[
+{id:'cyberpunk',nm:'Cyberpunk',ic:'🌃',cost:0,colors:['#050018','#0a0028','#140030'],accent:'#b400ff',sec:'#00f0ff'},
+{id:'glass',nm:'Glass',ic:'🪟',cost:500,colors:['#000018','#001028','#002040'],accent:'#00aaff',sec:'#ffffff'},
+{id:'dark',nm:'Pure Dark',ic:'🌑',cost:300,colors:['#000000','#0a0a0a','#1a1a1a'],accent:'#888888',sec:'#cccccc'},
+{id:'blood',nm:'Blood',ic:'🩸',cost:800,colors:['#0a0000','#1a0008','#280010'],accent:'#ff0044',sec:'#ff8800'},
+{id:'sunset',nm:'Sunset',ic:'🌅',cost:600,colors:['#0a0028','#280050','#500070'],accent:'#ff8800',sec:'#ffe600'},
+{id:'arctic',nm:'Arctic',ic:'❄️',cost:700,colors:['#001028','#003060','#0060a0'],accent:'#00f0ff',sec:'#ffffff'},
+{id:'galaxy',nm:'Galaxy',ic:'🌌',cost:1200,colors:['#000020','#0a0040','#200080'],accent:'#ff00ff',sec:'#8000ff'},
+{id:'ocean',nm:'Ocean',ic:'🌊',cost:600,colors:['#001028','#003050','#0060a0'],accent:'#00ccff',sec:'#00ff88'},
+{id:'forest',nm:'Forest',ic:'🌲',cost:600,colors:['#001a08','#003010','#005020'],accent:'#00ff88',sec:'#88ff44'},
+{id:'fire',nm:'Fire',ic:'🔥',cost:700,colors:['#1a0000','#280800','#401000'],accent:'#ff4500',sec:'#ffd700'},
+{id:'neon',nm:'Neon City',ic:'🌆',cost:1500,colors:['#0a0028','#200050','#400080'],accent:'#ff00ff',sec:'#00ffff'},
+];
+const ThemeSys={
+apply(id){
+const t=THEMES.find(x=>x.id===id);if(!t)return;
+const r=document.documentElement.style;
+r.setProperty('--bg',t.colors[0]);r.setProperty('--bg2',t.colors[1]);r.setProperty('--bg3',t.colors[2]);
+r.setProperty('--neon',t.accent);r.setProperty('--n2',t.sec);
+Store.d.currentTheme=id;Store.save();},
+buy(id){
+const t=THEMES.find(x=>x.id===id);if(!t)return;
+if(Store.d.ownedThemes.includes(id))return Toast.show('❌ Owned','err');
+if(Store.d.coins<t.cost)return Toast.show('❌ Need '+fmt(t.cost)+' 🪙','err');
+Store.d.coins-=t.cost;Store.d.ownedThemes.push(id);
+Store.d.shopCount=(Store.d.shopCount||0)+1;
+Store.save();UI.updateTop();Audio.success();Toast.show('✅ Theme unlocked!','ok');AchSys.check();}
+};
+
+/* === BG PARTICLES === */
+const BgFx={
+init(){this.canvas=$('#bgCanvas');this.ctx=this.canvas.getContext('2d');
+this.resize();this.particles=[];for(let i=0;i<50;i++)this.particles.push(this.makeP());
+this.lines=[];for(let i=0;i<12;i++)this.lines.push({y:rand(0,innerHeight),s:rand(0.2,1.2)});
+this.loop();window.addEventListener('resize',()=>this.resize());},
+resize(){this.canvas.width=innerWidth;this.canvas.height=innerHeight;},
+makeP(){return{x:rand(0,innerWidth),y:rand(0,innerHeight),s:rand(1,3),vx:rand(-0.3,0.3),vy:rand(-0.5,-0.1),a:rand(0.3,1),c:pick(['#b400ff','#00f0ff','#ff007a','#ffe600'])};},
+loop(){if(Store.d.lowPower){requestAnimationFrame(()=>this.loop());return;}
+this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+this.lines.forEach(l=>{l.y+=l.s;if(l.y>innerHeight)l.y=-10;
+this.ctx.strokeStyle='rgba(180,0,255,.08)';this.ctx.lineWidth=1;
+this.ctx.beginPath();this.ctx.moveTo(0,l.y);this.ctx.lineTo(innerWidth,l.y);this.ctx.stroke();});
+this.ctx.strokeStyle='rgba(180,0,255,.04)';
+for(let i=0;i<innerWidth;i+=50){this.ctx.beginPath();this.ctx.moveTo(i,0);this.ctx.lineTo(i,innerHeight);this.ctx.stroke();}
+for(let i=0;i<innerHeight;i+=50){this.ctx.beginPath();this.ctx.moveTo(0,i);this.ctx.lineTo(innerWidth,i);this.ctx.stroke();}
+this.particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;
+if(p.y<0)p.y=innerHeight;if(p.x<0)p.x=innerWidth;if(p.x>innerWidth)p.x=0;
+this.ctx.fillStyle=p.c;this.ctx.globalAlpha=p.a;
+this.ctx.shadowBlur=10;this.ctx.shadowColor=p.c;
+this.ctx.beginPath();this.ctx.arc(p.x,p.y,p.s,0,Math.PI*2);this.ctx.fill();});
+this.ctx.globalAlpha=1;this.ctx.shadowBlur=0;
+requestAnimationFrame(()=>this.loop());}
+};
+
+/* === LUCKY WHEEL === */
+const WHEEL_REWARDS=[
+{t:'🪙 100',v:100,tp:'coin',w:20},{t:'🪙 250',v:250,tp:'coin',w:15},
+{t:'🪙 500',v:500,tp:'coin',w:8},{t:'💎 5',v:5,tp:'dmd',w:10},
+{t:'💎 20',v:20,tp:'dmd',w:3},{t:'🌟 100 XP',v:100,tp:'xp',w:12},
+{t:'🎁 Jackpot',v:'jackpot',tp:'jp',w:1},{t:'🪙 50',v:50,tp:'coin',w:25},
+{t:'❌ Miss',v:0,tp:'miss',w:5}
+];
+const Wheel={
+canSpin(){return Date.now()-Store.d.lastSpin>=3600000;},
+spin(){
+if(!this.canSpin()){const rem=3600-Math.floor((Date.now()-Store.d.lastSpin)/1000);
+Toast.show('⏱ '+Math.floor(rem/60)+'m '+(rem%60)+'s','warn');return;}
+const totalW=WHEEL_REWARDS.reduce((s,r)=>s+r.w,0);
+let r=Math.random()*totalW,picked=null;
+for(const x of WHEEL_REWARDS){if(r<x.w){picked=x;break;}r-=x.w;}
+Store.d.lastSpin=Date.now();Store.d.spinCount=(Store.d.spinCount||0)+1;
+if(picked.tp==='coin')Player.addCoins(picked.v,'wheel');
+else if(picked.tp==='dmd')Player.addDiamonds(picked.v,'wheel');
+else if(picked.tp==='xp')Player.addXP(picked.v);
+else if(picked.tp==='jp'){Player.addCoins(2000,'jackpot');Player.addDiamonds(10,'jackpot');
+Store.d.luckyJackpot=true;Toast.show('🎉 JACKPOT! +2000 🪙 +10 💎','ok');Confetti.burst(innerWidth/2,innerHeight/2,80);}
+else Toast.show('💨 Miss!','warn');
+AchSys.check();}
+};
+
+/* === BATTLE PASS === */
+const BP={
+levels(){const out=[];for(let i=1;i<=100;i++)out.push({lvl:i,xp:i*100,
+free:i%5===0?{c:50+i*10}:null,premium:i%3===0?{c:100+i*20,d:1}:null});return out;},
+addXP(n){Store.d.battlePass.xp+=n;if(Store.d.battlePass.xp>10000)Store.d.battlePass.xp=10000;
+Store.save();AchSys.check();},
+claim(lvl,type){
+const lvlData=this.levels()[lvl-1];if(!lvlData)return;
+const reward=type==='free'?lvlData.free:lvlData.premium;
+if(!reward)return;
+const key=lvl+'-'+type;
+if(Store.d.battlePass.claimed.includes(key))return Toast.show('❌ Claimed','err');
+if(type==='premium'&&!Store.d.battlePass.premium)return Toast.show('💎 Need Premium pass','err');
+if(Store.d.battlePass.xp<lvlData.xp)return Toast.show('❌ Need '+(lvlData.xp-Store.d.battlePass.xp)+' more BP XP','err');
+if(reward.c)Player.addCoins(reward.c,'bp');
+if(reward.d)Player.addDiamonds(reward.d,'bp');
+Store.d.battlePass.claimed.push(key);Store.save();Audio.success();UI.show('battlepass');}
+};
+
+/* === MODAL === */
+const Modal={
+show(html){$('#mbox').innerHTML='<div class="x" onclick="Modal.hide()">✕</div>'+html;
+$('#modal').classList.remove('hide');},
+hide(){$('#modal').classList.add('hide');}
+};
+</script>
+<!-- PART 4: UI SCREENS + 4 GAMES -->
+<script>
+const UI={
+current:'home',game:null,
+updateTop(){$('#coins').textContent=fmt(Store.d.coins);$('#diamonds').textContent=fmt(Store.d.diamonds);$('#energy').textContent=Store.d.energy;$('#lvl').textContent=Store.d.level;},
+show(name){Audio.click();this.current=name;const main=$('#main');main.innerHTML='';const s=document.createElement('div');s.className='screen';
+if(name==='home')this.home(s);else if(name==='profile')this.profile(s);else if(name==='games')this.games(s);
+else if(name==='achievements')this.achievements(s);else if(name==='shop')this.shop(s);else if(name==='daily')this.daily(s);
+else if(name==='wheel')this.wheel(s);else if(name==='battlepass')this.battlepass(s);else if(name==='themes')this.themes(s);
+else if(name==='stats')this.stats(s);else if(name==='settings')this.settings(s);else if(name==='credits')this.credits(s);
+else if(name==='snake')Games.snake(s);else if(name==='2048')Games.puzzle(s);else if(name==='memory')Games.memory(s);
+else if(name==='tictactoe')Games.ttt(s);else if(name==='tetris')Games.tetris(s);else if(name==='blockblast')Games.blockblast(s);
+else if(name==='minesweeper')Games.mines(s);
+main.appendChild(s);s.scrollTop=0;},
+
+home(s){
+const vipBadge=Store.d.vip?'<span class="vip">★ VIP</span>':'';
+const h=`<div class="panel"><div class="row" style="justify-content:space-between"><div><div style="font-size:18px;font-weight:900">${Store.d.avatar} ${Store.d.username} ${vipBadge}</div><div style="font-size:11px;color:var(--mut)">${Store.d.title} · <span class="rk rk-${Store.d.rank}">${Store.d.rank}</span></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:900;color:var(--n2)">⭐ ${Store.d.level}</div><div class="bar" style="width:120px"><div class="fill" style="width:${(Store.d.xp/Player.xpNeeded(Store.d.level)*100)|0}%"></div></div><div style="font-size:9px;color:var(--mut);margin-top:2px">${Store.d.xp}/${Player.xpNeeded(Store.d.level)} XP</div></div></div><div style="font-size:11px;color:var(--mut)">Energy</div><div class="energy"><div class="fill" style="width:${(Store.d.energy/Store.d.energyMax*100)|0}%"></div></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">⚡ Quick Actions</div><div class="row"><button class="btn ok" onclick="Daily.claim()">🎁 Daily Reward</button><button class="btn warn" onclick="UI.show('wheel')">🎰 Lucky Wheel</button><button class="btn" onclick="UI.show('battlepass')">🎫 Battle Pass</button></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">🎮 Menu</div><div class="grid"><div class="tile" onclick="UI.show('games')"><span class="em">🎮</span><div class="nm">Games</div><div class="ds">All games</div></div><div class="tile" onclick="UI.show('profile')"><span class="em">👤</span><div class="nm">Profile</div><div class="ds">Your stats</div></div><div class="tile" onclick="UI.show('achievements')"><span class="em">🏆</span><div class="nm">Achievements</div><div class="ds">${Object.keys(Store.d.achievements).length}/${ACHS.length}</div></div><div class="tile" onclick="UI.show('shop')"><span class="em">🛒</span><div class="nm">Shop</div><div class="ds">Buy items</div></div><div class="tile" onclick="UI.show('daily')"><span class="em">📅</span><div class="nm">Daily</div><div class="ds">Quests & login</div></div><div class="tile" onclick="UI.show('wheel')"><span class="em">🎰</span><div class="nm">Wheel</div><div class="ds">Try luck</div></div><div class="tile" onclick="UI.show('battlepass')"><span class="em">🎫</span><div class="nm">Battle Pass</div><div class="ds">S${Store.d.season}</div></div><div class="tile" onclick="UI.show('themes')"><span class="em">🎨</span><div class="nm">Themes</div><div class="ds">${Store.d.ownedThemes.length} owned</div></div><div class="tile" onclick="UI.show('stats')"><span class="em">📊</span><div class="nm">Statistics</div><div class="ds">Your record</div></div><div class="tile" onclick="UI.show('settings')"><span class="em">⚙️</span><div class="nm">Settings</div><div class="ds">Audio, save</div></div><div class="tile" onclick="UI.show('credits')"><span class="em">ℹ️</span><div class="nm">About</div><div class="ds">v3.0</div></div><div class="tile" onclick="Secret.check()" style="background:rgba(255,0,68,.1)"><span class="em">🔒</span><div class="nm">Secret</div><div class="ds">???</div></div></div></div><div style="text-align:center;color:var(--mut);font-size:10px;padding:10px">BLOCKVERSE V3.0 · Made with ❤️</div>`;
+s.innerHTML=h;},
+
+profile(s){
+const s2=Store.d.stats;
+const h=`<div class="panel"><div style="font-size:60px;text-align:center;margin:10px 0;filter:drop-shadow(0 0 20px var(--neon))">${Store.d.avatar}</div><div style="text-align:center;font-size:22px;font-weight:900">${Store.d.username} ${Store.d.vip?'<span class="vip">★ VIP</span>':''}</div><div style="text-align:center;margin:8px 0"><span class="rk rk-${Store.d.rank}" style="font-size:18px">${Store.d.rank}</span></div><div class="row"><input class="txt" id="userInput" value="${Store.d.username}" placeholder="Username"><input class="txt" id="clanInput" value="${Store.d.clan}" placeholder="Clan"></div><div class="row"><input class="txt" id="titleInput" value="${Store.d.title}" placeholder="Title"></div><div class="row"><button class="btn ok" onclick="UI.saveProfile()">💾 Save</button><button class="btn" onclick="UI.changeAvatar()">🎭 Avatar</button></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📊 Statistics</div><div class="row" style="justify-content:space-between"><span>🎮 Played</span><b>${fmt(s2.gamesPlayed)}</b></div><div class="row" style="justify-content:space-between"><span>🥇 Wins</span><b>${fmt(s2.wins)}</b></div><div class="row" style="justify-content:space-between"><span>💔 Losses</span><b>${fmt(s2.losses)}</b></div><div class="row" style="justify-content:space-between"><span>⭐ Best Score</span><b>${fmt(s2.highestScore)}</b></div><div class="row" style="justify-content:space-between"><span>📈 Total Score</span><b>${fmt(s2.totalScore)}</b></div><div class="row" style="justify-content:space-between"><span>🎯 Accuracy</span><b>${(s2.accuracy*100).toFixed(1)}%</b></div><div class="row" style="justify-content:space-between"><span>⏱ Play Time</span><b>${Math.floor(s2.playTime/60)}m</b></div><div class="row" style="justify-content:space-between"><span>🔥 Longest Streak</span><b>${s2.longestStreak}</b></div><div class="row" style="justify-content:space-between"><span>💰 Total Coins</span><b>${fmt(s2.totalCoins)}</b></div><div class="row" style="justify-content:space-between"><span>💎 Total Diamonds</span><b>${fmt(s2.totalDiamonds)}</b></div><div class="row" style="justify-content:space-between"><span>✨ XP Earned</span><b>${fmt(s2.xpEarned)}</b></div></div>`;
+s.innerHTML=h;},
+
+saveProfile(){Store.d.username=$('#userInput').value.trim()||Store.d.username;Store.d.clan=$('#clanInput').value.trim();Store.d.title=$('#titleInput').value.trim()||'Newbie';Store.save();Toast.show('✅ Saved','ok');Audio.success();},
+changeAvatar(){const a=pick(Store.d.ownedAvatars);Store.d.avatar=a;Store.save();UI.show('profile');Audio.click();Toast.show('🎭 New avatar: '+a);},
+
+games(s){
+const GAMES=[{id:'snake',nm:'Snake',em:'🐍',ds:'Classic',cost:0,unlock:0},{id:'2048',nm:'2048',em:'🧩',ds:'Puzzle',cost:0,unlock:0},{id:'memory',nm:'Memory',em:'🧠',ds:'Match cards',cost:0,unlock:0},{id:'tictactoe',nm:'Tic Tac Toe',em:'⭕',ds:'AI mode',cost:0,unlock:0},{id:'minesweeper',nm:'Minesweeper',em:'💣',ds:'Avoid mines',cost:0,unlock:0},{id:'tetris',nm:'Tetris',em:'🧱',ds:'Stack blocks',cost:100,unlock:0},{id:'blockblast',nm:'Block Blast',em:'🟦',ds:'Match lines',cost:100,unlock:0}];
+let html='<div class="panel"><div style="font-weight:800">🎮 Game Library</div><div style="font-size:11px;color:var(--mut);margin-top:4px">More games coming soon!</div></div><div class="grid">';
+GAMES.forEach(g=>{const owned=Store.d.unlockedGames.includes(g.id);const lk=!owned&&g.cost>0;const best=Store.d.bestScores[g.id]||0;
+html+=`<div class="tile ${lk?'lk':''}" onclick="UI.tryGame('${g.id}',${g.cost})"><span class="em">${g.em}</span><div class="nm">${g.nm}</div><div class="ds">${owned?'Best: '+fmt(best):'🔒 '+fmt(g.cost)+' 🪙'}</div></div>`;});
+if(Store.d.hiddenGamesUnlocked)html+=`<div class="tile" onclick="UI.show('snake')"><span class="em">⭐</span><div class="nm">HIDDEN</div><div class="ds">Special</div></div>`;
+html+='</div>';s.innerHTML=html;},
+
+tryGame(id,cost){if(Store.d.unlockedGames.includes(id)){UI.show(id);return;}
+if(Store.d.coins<cost)return Toast.show('❌ Need '+fmt(cost)+' 🪙','err');
+if(!confirm('Unlock for '+fmt(cost)+' 🪙?'))return;
+Store.d.coins-=cost;Store.d.unlockedGames.push(id);Store.d.shopCount=(Store.d.shopCount||0)+1;Store.save();UI.updateTop();Audio.success();Toast.show('✅ Unlocked!','ok');UI.show('games');AchSys.check();},
+
+achievements(s){const list=ACHS.map(a=>({...a,done:!!Store.d.achievements[a.code]}));list.sort((a,b)=>(b.done?1:0)-(a.done?1:0));
+let html='<div class="tabs"><div class="tab on" onclick="UI.tabAch(this,1)">All</div><div class="tab" onclick="UI.tabAch(this,2)">Done</div><div class="tab" onclick="UI.tabAch(this,3)">Locked</div></div><div id="achList">';
+list.forEach(a=>{const don=a.done?'done':'';const ic=a.done?a.ic:'🔒';
+html+=`<div class="ach ${don}" data-state="${a.done?1:0}"><div class="ic ${a.done?'':'lk'}">${ic}</div><div class="info"><div class="ti">${a.ti}</div><div class="de">${a.de}</div><div class="rw">${a.rw}</div></div></div>`;});
+html+='</div>';s.innerHTML=html;},
+
+tabAch(el,f){$$('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');$$('.ach').forEach(a=>{const d=+a.dataset.state;if(f===1)a.style.display='';else if(f===2)a.style.display=d?'block':'none';else a.style.display=d?'none':'block';});},
+
+shop(s){const cats=[{id:'themes',nm:'🎨 Themes'},{id:'avatars',nm:'🎭 Avatars'},{id:'vip',nm:'⭐ VIP'}];
+let html='<div class="tabs">';cats.forEach((c,i)=>html+=`<div class="tab ${i===0?'on':''}" onclick="UI.tabShop(this,'${c.id}')">${c.nm}</div>`);html+='</div>';
+cats.forEach((c,i)=>{html+=`<div class="panel shop-c" data-cat="${c.id}" style="${i?'display:none':''}"><div style="font-weight:800;margin-bottom:8px">${c.nm}</div>`;
+if(c.id==='themes')THEMES.forEach(t=>{const o=Store.d.ownedThemes.includes(t.id);const eq=Store.d.currentTheme===t.id;
+html+=`<div class="row" style="justify-content:space-between"><div><b>${t.ic} ${t.nm}</b>${o?'':' · '+fmt(t.cost)+' 🪙'}${eq?' · ✅':''}</div>${o?(eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="ThemeSys.apply('${t.id}');UI.show('shop')">Use</button>`):`<button class="btn sm" onclick="ThemeSys.buy('${t.id}')">Buy</button>`}</div>`;});
+else if(c.id==='avatars')Store.d.ownedAvatars.forEach(a=>{const eq=Store.d.avatar===a;
+html+=`<div class="row" style="justify-content:space-between"><div style="font-size:24px">${a}</div>${eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="Store.d.avatar='${a}';Store.save();UI.show('shop')">Use</button>`}</div>`;});
+else if(c.id==='vip'){html+=`<div style="padding:10px;background:var(--glass);border-radius:8px;margin-bottom:8px"><b>⭐ VIP — 7 days</b> · 999 🪙<br><span style="font-size:11px;color:var(--mut)">2x coins/XP, exclusive badge, animated title</span></div>`;
+html+=`<div style="padding:10px;background:var(--glass);border-radius:8px;margin-bottom:8px"><b>💎 VIP — 30 days</b> · 49 💎<br><span style="font-size:11px;color:var(--mut)">All VIP perks + 5000 🪙 bonus</span></div>`;
+html+=`<button class="btn warn full" onclick="UI.buyVIP(7)">⭐ 7 days (999 🪙)</button> <button class="btn full" onclick="UI.buyVIP(30)">💎 30 days (49 💎)</button>`;}
+html+='</div>';});s.innerHTML=html;},
+
+tabShop(el,cat){$$('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');$$('.shop-c').forEach(p=>p.style.display=p.dataset.cat===cat?'block':'none');},
+
+buyVIP(days){const costC=days===7?999:0,costD=days===30?49:0;
+if(Store.d.coins<costC||Store.d.diamonds<costD)return Toast.show('❌ Not enough currency','err');
+if(Store.d.vip&&Store.d.vipUntil>Date.now())return Toast.show('❌ Already VIP','err');
+Store.d.coins-=costC;Store.d.diamonds-=costD;
+if(days===30)Player.addCoins(5000,'vip');
+Store.d.vip=true;Store.d.vipUntil=Date.now()+days*86400000;Store.save();UI.updateTop();Toast.show('⭐ VIP Active!','ok');Confetti.burst(innerWidth/2,innerHeight/2,40);Audio.success();AchSys.check();},
+
+daily(s){Daily.genQuests();
+const h=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">📅 Daily Reward</div><div style="font-size:11px;color:var(--mut);margin-bottom:8px">Streak: 🔥 ${Store.d.streak} days</div><button class="btn ok full" onclick="Daily.claim()" ${Daily.canClaim()?'':'disabled'}>${Daily.canClaim()?'🎁 Claim Now':'⏱ Already claimed'}</button></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📋 Daily Quests</div>`;
+Store.d.dailyQuests.forEach(q=>{const p=Math.min(100,(q.cur/q.goal*100)|0);
+h+=`<div class="ach ${q.done?'done':''}" style="margin-bottom:8px"><div class="ic">${q.done?'✅':'📌'}</div><div class="info"><div class="ti">${q.desc}</div><div class="bar"><div class="fill" style="width:${p}%"></div></div><div style="font-size:10px;color:var(--mut);margin-top:2px">${q.cur}/${q.goal} · ${q.rw}</div></div></div>`;});
+h+='</div>';s.innerHTML=h;},
+
+wheel(s){const canSpin=Wheel.canSpin();const rem=canSpin?0:3600-Math.floor((Date.now()-Store.d.lastSpin)/1000);
+const h=`<div class="panel" style="text-align:center"><div style="font-size:80px;margin:20px 0;filter:drop-shadow(0 0 30px var(--n4))">🎰</div><div style="font-weight:900;font-size:22px;margin-bottom:8px">LUCKY WHEEL</div><div style="font-size:12px;color:var(--mut);margin-bottom:14px">50+ rewards · Jackpot: 2000 🪙 + 10 💎</div>${canSpin?`<button class="btn warn full" onclick="Wheel.spin();UI.show('wheel')">🎰 SPIN!</button>`:`<button class="btn full" disabled>⏱ ${Math.floor(rem/60)}m ${rem%60}s</button>`}</div><div class="panel"><div style="font-weight:800;margin-bottom:8px">🎁 Possible Rewards</div>`;
+WHEEL_REWARDS.forEach(r=>{h+=`<div class="row" style="justify-content:space-between;font-size:12px"><span>${r.t}</span><span style="color:var(--mut)">${(r.w/105*100).toFixed(0)}%</span></div>`;});h+='</div>';s.innerHTML=h;},
+
+battlepass(s){const lvl=Math.floor(Store.d.battlePass.xp/100);
+const h=`<div class="panel"><div class="row" style="justify-content:space-between"><div><div style="font-weight:800">🎫 Battle Pass S${Store.d.season}</div><div style="font-size:11px;color:var(--mut)">Level ${lvl}/100 · ${Store.d.battlePass.xp}/10000 XP</div></div><div>${Store.d.battlePass.premium?'<span class="vip">★ PREMIUM</span>':`<button class="btn warn sm" onclick="UI.buyBP()">💎 Buy Premium (49💎)</button>`}</div></div><div class="bar" style="margin:8px 0"><div class="bp-fill" style="width:${(Store.d.battlePass.xp/10000*100)|0}%"></div></div></div>`;
+let g='<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">';
+const data=BP.levels();data.forEach(d=>{const claimedF=Store.d.battlePass.claimed.includes(d.lvl+'-free');const claimedP=Store.d.battlePass.claimed.includes(d.lvl+'-premium');
+g+=`<div class="panel" style="padding:8px;margin:0;text-align:center"><div style="font-size:18px;font-weight:900;color:var(--n2)">${d.lvl}</div><div style="font-size:10px;color:var(--mut)">${d.xp}xp</div>${d.free?`<button class="btn ok sm" style="margin-top:4px;width:100%" ${claimedF?'disabled':''} onclick="BP.claim(${d.lvl},'free')">${claimedF?'✅':'Free'}</button>`:''}${d.premium?`<button class="btn warn sm" style="margin-top:4px;width:100%" ${claimedP?'disabled':''} onclick="BP.claim(${d.lvl},'premium')">${claimedP?'✅':'Prem'}</button>`:''}</div>`;});
+g+='</div>';s.innerHTML=h+g;},
+
+buyBP(){if(Store.d.diamonds<49)return Toast.show('❌ Need 49 💎','err');Store.d.diamonds-=49;Store.d.battlePass.premium=true;Store.save();Toast.show('🎫 Premium unlocked!','ok');UI.show('battlepass');},
+
+themes(s){let h='<div class="panel"><div style="font-weight:800">🎨 Themes</div></div><div class="grid">';
+THEMES.forEach(t=>{const o=Store.d.ownedThemes.includes(t.id),eq=Store.d.currentTheme===t.id;
+h+=`<div class="tile" onclick="${o?`ThemeSys.apply('${t.id}');UI.show('themes')`:`ThemeSys.buy('${t.id}')`}" style="background:linear-gradient(135deg,${t.colors[0]},${t.colors[1]},${t.colors[2]});color:${t.accent}"><span class="em" style="filter:drop-shadow(0 0 8px ${t.accent})">${t.ic}</span><div class="nm">${t.nm}</div><div class="ds">${o?(eq?'✅ Active':'Tap to use'):'🔒 '+fmt(t.cost)+' 🪙'}</div></div>`;});
+h+='</div>';s.innerHTML=h;},
+
+stats(s){const s2=Store.d.stats;const max=Math.max(1,s2.highestScore);let chart='';
+const best=Object.entries(Store.d.bestScores).sort((a,b)=>b[1]-a[1]).slice(0,8);
+best.forEach(([k,v])=>{chart+=`<div class="row" style="justify-content:space-between;font-size:11px"><span>${k}</span><div class="bar" style="width:60%"><div class="fill" style="width:${(v/max*100)|0}%"></div></div><span>${fmt(v)}</span></div>`;});
+s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">📊 Stats Overview</div><div class="row" style="justify-content:space-between"><span>🎮 Total Played</span><b>${fmt(s2.gamesPlayed)}</b></div><div class="row" style="justify-content:space-between"><span>⏱ Play Time</span><b>${Math.floor(s2.playTime/60)} min</b></div><div class="row" style="justify-content:space-between"><span>🏆 Win Rate</span><b>${s2.gamesPlayed?(s2.wins/s2.gamesPlayed*100).toFixed(1):0}%</b></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📈 Top Scores</div>${chart||'<div style="color:var(--mut);font-size:12px">Play games to see scores</div>'}</div>`;},
+
+settings(s){s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">⚙️ Settings</div><div class="row" style="justify-content:space-between"><span>🔊 Sound</span><input type="checkbox" ${Store.d.soundEnabled?'checked':''} onchange="Store.d.soundEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🎵 Music</span><input type="checkbox" ${Store.d.musicEnabled?'checked':''} onchange="Store.d.musicEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🎬 FPS Counter</span><input type="checkbox" ${Store.d.showFPS?'checked':''} onchange="Store.d.showFPS=this.checked;$('#fps').style.display=this.checked?'block':'none';Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🔋 Low Power Mode</span><input type="checkbox" ${Store.d.lowPower?'checked':''} onchange="Store.d.lowPower=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🛠 Dev Mode (3x rewards)</span><input type="checkbox" ${Store.d.devMode?'checked':''} onchange="Store.d.devMode=this.checked;Store.save();Toast.show(this.checked?'🛠 Dev ON':'Dev OFF');" style="width:20px;height:20px"></div><div class="row" style="font-size:12px">Volume: ${(Store.d.volume*100)|0}%</div><input type="range" min="0" max="100" value="${(Store.d.volume*100)|0}" style="width:100%" oninput="Store.d.volume=this.value/100;Store.save();Audio.beep(440,0.05);"></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">💾 Save / Load</div><div class="row"><button class="btn ok" onclick="Store.save();Toast.show('💾 Saved','ok')">💾 Save Now</button><button class="btn" onclick="Store.export()">📤 Export JSON</button><button class="btn" onclick="Store.import()">📥 Import JSON</button></div><div class="row"><button class="btn warn" onclick="UI.promo()">🎁 Promo Code</button><button class="btn d" onclick="Store.reset()">⚠️ Reset All Data</button></div></div><div class="panel" style="font-size:11px;color:var(--mut)">Account created: ${new Date(Store.d.createdAt).toLocaleDateString()}<br>Storage used: ${(JSON.stringify(Store.d).length/1024).toFixed(1)} KB</div>`;},
+
+credits(s){s.innerHTML=`<div class="panel" style="text-align:center"><div style="font-size:60px;margin:10px 0;filter:drop-shadow(0 0 30px var(--neon))">⚡</div><div style="font-size:28px;font-weight:900;background:linear-gradient(90deg,var(--n2),var(--neon));-webkit-background-clip:text;background-clip:text;color:transparent">BLOCKVERSE V3.0 ULTIMATE</div><div style="color:var(--mut);font-size:12px;margin:8px 0">Cyberpunk Mini-Game Platform</div><div style="font-size:11px;line-height:1.7;margin-top:14px;text-align:left"><b>🎮 Games:</b> 7 playable + more coming<br><b>📊 Trophies:</b> 50 achievements<br><b>🎨 Themes:</b> 11 cyberpunk variants<br><b>🎁 Features:</b> Battle Pass, Lucky Wheel, Shop, Daily Quests, Statistics, Save/Load, Audio<br><b>💻 Stack:</b> Vanilla JS · HTML5 Canvas · LocalStorage · Web Audio API<br><b>📱 Devices:</b> Mobile + Desktop · Touch + Keyboard</div><div style="margin-top:14px;color:var(--mut);font-size:10px">No frameworks · No CDN · No server · 100% Offline<br>Made with ❤️ by Blockverse Team · 2026</div></div>`;},
+
+promo(){const c=prompt('Enter promo code:');if(!c)return;const u=c.toUpperCase();
+const codes={'WELCOME':{c:500,d:5,m:'Welcome!'},'BLOCKVERSE':{c:1000,d:10,m:'Founder!'},'NEON2026':{c:750,d:5,m:'Neon 2026!'},'CYBER':{c:2000,d:25,m:'Cyber!'}};
+if(Store.d.promoUsed.includes(u))return Toast.show('❌ Already used','err');
+const r=codes[u];if(!r)return Toast.show('❌ Invalid','err');
+Store.d.coins+=r.c;Store.d.diamonds+=r.d;Store.d.promoUsed.push(u);Store.save();UI.updateTop();Toast.show('🎁 '+r.m+' +'+r.c+' 🪙 +'+r.d+' 💎','ok');Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,30);},
+
+toastUnlocked(a){Modal.show(`<div style="text-align:center"><div style="font-size:70px;margin:15px 0;filter:drop-shadow(0 0 20px var(--ok))">🏆</div><div style="font-size:12px;color:var(--mut)">ACHIEVEMENT UNLOCKED</div><div style="font-size:24px;font-weight:900;color:var(--ok);margin:8px 0">${a.ic} ${a.ti}</div><div style="font-size:13px;color:var(--txt);margin:6px 0">${a.de}</div><div style="font-size:14px;color:var(--ok);font-weight:700;margin-top:10px">${a.rw}</div><button class="btn ok full" style="margin-top:14px" onclick="Modal.hide()">Awesome! 🎉</button></div>`);}
+};
+
+/* === SECRET === */
+const Secret={codes:['KONAMI','NEON','CYBER','BLOCKVERSE','GLITCH','HIDDEN','EASTER','MATRIX','DARK','IMMORTAL'],
+check(){const c=prompt('🔒 Enter secret code:');if(!c)return;const u=c.toUpperCase().trim();
+if(this.codes.includes(u)&&!Store.d.secretCodes.includes(u)){
+Store.d.secretCodes.push(u);
+const rewards={KONAMI:{c:1000,d:10},NEON:{c:500,d:5},CYBER:{c:800,d:8},BLOCKVERSE:{c:2000,d:25},
+GLITCH:{c:300,d:3},HIDDEN:{c:1500,d:15},EASTER:{c:1000,d:10},MATRIX:{c:500,d:5},DARK:{c:2000,d:20},IMMORTAL:{c:10000,d:100,vip:true}};
+const r=rewards[u];
+Store.d.coins+=r.c;Store.d.diamonds+=r.d;
+if(r.vip){Store.d.vip=true;Store.d.vipUntil=Date.now()+7*86400000;}
+Store.save();UI.updateTop();Toast.show('🎉 Secret! +'+r.c+' 🪙 +'+r.d+' 💎'+(r.vip?' + VIP!':''),'ok');
+Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,50);AchSys.check();
+}else if(Store.d.secretCodes.includes(u))Toast.show('❌ Already used','err');
+else Toast.show('❌ Wrong code','err');}};
+
+/* === GAMES (part 4: Snake, 2048, Memory, TicTacToe) === */
+const Games={
+canvas:null,ctx:null,running:false,raf:null,startTime:0,
+setup(w,h){const c=document.createElement('canvas');c.className='g';c.width=w;c.height=h;this.canvas=c;this.ctx=c.getContext('2d');return c;},
+end(score,game){this.running=false;
+if(this.raf)cancelAnimationFrame(this.raf);
+Player.addScore(game,score);Player.addXP(Math.floor(score/10)+10);Player.addCoins(Math.floor(score/5)+5);
+Store.d.stats.playTime+=Math.floor((Date.now()-this.startTime)/1000);Store.save();AchSys.check();
+Modal.show(`<div style="text-align:center"><div style="font-size:60px;margin:10px 0">🎮</div><div style="font-size:24px;font-weight:900;color:var(--ok)">Game Over!</div><div style="font-size:40px;font-weight:900;margin:10px 0;color:var(--n2);text-shadow:0 0 15px currentColor">${fmt(score)}</div><div style="font-size:13px;color:var(--mut)">Best: ${fmt(Store.d.bestScores[game]||0)} (${game})</div><button class="btn ok full" style="margin-top:14px" onclick="Modal.hide();UI.show('${game}')">🔁 Play Again</button><button class="btn full" style="margin-top:6px" onclick="Modal.hide();UI.show('home')">🏠 Home</button></div>`);},
+
+_gameUI(nm,em,ctrl){return `<div class="hud"><div class="h"><div class="v">${em}</div><div class="l">${nm}</div></div><div class="h"><div class="v sc">0</div><div class="l">Score</div></div><div class="h"><div class="v">${Store.d.energy}⚡</div><div class="l">Energy</div></div></div><div class="panel" style="padding:8px;text-align:center;font-size:11px;color:var(--mut)">${ctrl} · Best: ${fmt(Store.d.bestScores[nm.toLowerCase().replace(' ','')]||0)}</div><div class="gwrap"></div><button class="btn d full" onclick="Modal.hide();UI.show('home')">⏹ Quit Game</button>`;},
+
+snake(s){s.innerHTML=this._gameUI('Snake','🐍','WASD / Arrows / Swipe');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,W=c.width,H=c.height,C=19,S=20;let snake=[{x:9,y:9}],dir={x:1,y:0},nd=dir,food={x:5,y:5},score=0,dead=false,paused=false;
+const place=()=>{let f;do{f={x:ri(0,C-1),y:ri(0,C-1)};}while(snake.some(p=>p.x===f.x&&p.y===f.y));food=f;};
+const draw=()=>{ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(180,0,255,.1)';for(let i=0;i<=C;i++){ctx.beginPath();ctx.moveTo(i*S,0);ctx.lineTo(i*S,H);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*S);ctx.lineTo(W,i*S);ctx.stroke();}
+ctx.fillStyle='#ff007a';ctx.shadowBlur=15;ctx.shadowColor='#ff007a';ctx.fillRect(food.x*S+2,food.y*S+2,S-4,S-4);ctx.shadowBlur=0;
+snake.forEach((p,i)=>{const h=i===0;ctx.fillStyle=h?'#00ff88':'#00cc66';if(h){ctx.shadowBlur=15;ctx.shadowColor='#00ff88';}else ctx.shadowBlur=0;ctx.fillRect(p.x*S+1,p.y*S+1,S-2,S-2);});};
+const upd=()=>{if(paused||dead)return;const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+if(h.x<0||h.y<0||h.x>=C||h.y>=C||snake.some(p=>p.x===h.x&&p.y===h.y)){dead=true;Audio.fail();setTimeout(()=>Games.end(score,'snake'),300);return;}
+snake.unshift(h);if(h.x===food.x&&h.y===food.y){score+=10;Store.d.stats.combos++;Audio.coin();place();}else snake.pop();
+s.querySelector('.sc').textContent=fmt(score);draw();};
+const keys=(e)=>{const k=e.key.toLowerCase();if((k==='arrowup'||k==='w')&&dir.y!==1)nd={x:0,y:-1};
+if((k==='arrowdown'||k==='s')&&dir.y!==-1)nd={x:0,y:1};if((k==='arrowleft'||k==='a')&&dir.x!==1)nd={x:-1,y:0};
+if((k==='arrowright'||k==='d')&&dir.x!==-1)nd={x:1,y:0};if(k===' '){paused=!paused;e.preventDefault();}};
+document.addEventListener('keydown',keys);let tx=0,ty=0;
+c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
+if(Math.abs(dx)>Math.abs(dy)){if(dx>10&&dir.x!==-1)nd={x:1,y:0};else if(dx<-10&&dir.x!==1)nd={x:-1,y:0};}
+else{if(dy>10&&dir.y!==-1)nd={x:0,y:1};else if(dy<-10&&dir.y!==1)nd={x:0,y:-1;}}};
+const loop=setInterval(()=>{dir=nd;upd();},120);this.startTime=Date.now();this.running=true;
+UI.gameCleanup=()=>{clearInterval(loop);document.removeEventListener('keydown',keys);};},
+
+puzzle(s){s.innerHTML=this._gameUI('2048','🧩','Arrows / WASD');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,N=4,S=85,G=10,W=N*S+(N+1)*G;c.width=W;c.height=W;
+let board=Array(N).fill().map(()=>Array(N).fill(0));const colors={0:'#1a0a30',2:'#00f0ff',4:'#00ccff',8:'#00aaff',16:'#0088ff',32:'#ff00ff',64:'#ff44ff',128:'#ff88ff',256:'#ff007a',512:'#ff4400',1024:'#ffd700',2048:'#ffe600',4096:'#ff4400'};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,c.width,c.height);
+for(let i=0;i<N;i++)for(let j=0;j<N;j++){const v=board[i][j],x=G+j*(S+G),y=G+i*(S+G);
+ctx.fillStyle=colors[v]||'#ff0044';if(v){ctx.shadowBlur=10;ctx.shadowColor=colors[v];}else ctx.shadowBlur=0;
+ctx.fillRect(x,y,S,S);if(v){ctx.fillStyle='#fff';ctx.font='bold '+(v<100?32:v<1000?26:20)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v,x+S/2,y+S/2);}}ctx.shadowBlur=0;};
+const add=()=>{const e=[];for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])e.push([i,j]);if(!e.length)return;const[i,j]=pick(e);board[i][j]=Math.random()<.9?2:4;};
+const slide=row=>{let r=row.filter(x=>x);for(let i=0;i<r.length-1;i++)if(r[i]===r[i+1]){r[i]*=2;r[i+1]=0;score+=r[i];}
+r=r.filter(x=>x);while(r.length<N)r.push(0);return r;};
+const move=(d)=>{let moved=false;
+if(d==='L')for(let i=0;i<N;i++){const o=[...board[i]];board[i]=slide(board[i]);if(o.join()!==board[i].join())moved=true;}
+else if(d==='R')for(let i=0;i<N;i++){const o=[...board[i]];board[i]=slide([...board[i]].reverse()).reverse();if(o.join()!==board[i].join())moved=true;}
+else if(d==='U')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]]);for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
+else if(d==='D')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]].reverse()).reverse();for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
+return moved;};
+const canMove=()=>{for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])return true;for(let i=0;i<N;i++)for(let j=0;j<N-1;j++)if(board[i][j]===board[i][j+1])return true;for(let i=0;i<N-1;i++)for(let j=0;j<N;j++)if(board[i][j]===board[i+1][j])return true;return false;};
+let score=0;const upd=(d)=>{if(move(d)){add();Audio.click();s.querySelector('.sc').textContent=fmt(score);draw();if(!canMove())setTimeout(()=>Games.end(score,'2048'),300);}};
+const keys=(e)=>{const k=e.key.toLowerCase();let d=null;if(k==='arrowleft'||k==='a')d='L';if(k==='arrowright'||k==='d')d='R';if(k==='arrowup'||k==='w')d='U';if(k==='arrowdown'||k==='s')d='D';if(d){upd(d);e.preventDefault();}};
+document.addEventListener('keydown',keys);let tx=0,ty=0;
+c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.abs(dx)>Math.abs(dy))upd(dx>0?'R':'L');else upd(dy>0?'D':'U');};
+add();add();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>document.removeEventListener('keydown',keys);},
+
+memory(s){s.innerHTML=this._gameUI('Memory','🧠','Click cards');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,N=4,S=85,G=10,W=N*S+(N+1)*G;c.width=W;c.height=W;
+const symbols=['🎮','🎯','🚀','💎','⚡','🌟','🎨','🔥'];let cards=[];
+const init=()=>{const syms=[...symbols,...symbols].sort(()=>Math.random()-.5);cards=syms.map((s,i)=>({s,i,revealed:false,matched:false,x:i%N,y:Math.floor(i/N)}));};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);cards.forEach(card=>{const x=G+card.x*(S+G),y=G+card.y*(S+G);
+ctx.fillStyle=card.matched?'rgba(0,255,136,.3)':card.revealed?'rgba(180,0,255,.3)':'rgba(180,0,255,.6)';
+ctx.strokeStyle=card.matched?'#00ff88':card.revealed?'#ff007a':'#b400ff';ctx.lineWidth=2;ctx.shadowBlur=10;ctx.shadowColor=ctx.strokeStyle;
+ctx.fillRect(x,y,S,S);ctx.strokeRect(x,y,S,S);ctx.shadowBlur=0;
+if(card.revealed||card.matched){ctx.font='40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(card.s,x+S/2,y+S/2);}});};
+let first=null,locked=false,score=0,moves=0;
+const click=(mx,my)=>{if(locked)return;const cx=Math.floor((mx-G)/(S+G)),cy=Math.floor((my-G)/(S+G));
+if(cx<0||cy<0||cx>=N||cy>=N)return;const card=cards.find(c=>c.x===cx&&c.y===cy);
+if(!card||card.revealed||card.matched)return;card.revealed=true;draw();Audio.click();
+if(!first){first=card;}else{moves++;if(first.s===card.s){card.matched=true;first.matched=true;score+=100;Store.d.stats.combos++;Audio.success();first=null;
+if(cards.every(c=>c.matched))setTimeout(()=>Games.end(score,'memory'),500);
+}else{locked=true;setTimeout(()=>{card.revealed=false;first.revealed=false;first=null;locked=false;draw();},800);}
+s.querySelector('.sc').textContent=fmt(score);}};
+c.onclick=e=>{const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height));};
+let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const r=c.getBoundingClientRect();click((tx-r.left)*(c.width/r.width),(ty-r.top)*(c.height/r.height));};
+init();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};},
+
+ttt(s){s.innerHTML=this._gameUI('Tic Tac Toe','⭕','Tap cells · vs AI');const c=this.setup(300,300);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,N=3,S=95,G=5,W=N*S+(N+1)*G;c.width=W;c.height=W;
+let board=Array(9).fill(null),score=0,turn='X',over=false;
+const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const win=()=>{for(const l of lines){const[a,b,c]=l.map(i=>board[i]);if(a&&a===b&&b===c)return a;}return null;};
+const aiMove=()=>{for(let i=0;i<9;i++)if(!board[i]){board[i]='O';if(win()==='O')return i;board[i]=null;}
+for(let i=0;i<9;i++)if(!board[i]){board[i]='X';if(win()==='X'){board[i]=null;return i;}board[i]=null;}
+for(let i of[4,0,2,6,8,1,3,5,7])if(!board[i])return i;return -1;};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);ctx.strokeStyle='rgba(180,0,255,.4)';ctx.lineWidth=3;
+for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(G+i*(S+G)-G/2,0);ctx.lineTo(G+i*(S+G)-G/2,W);ctx.stroke();
+ctx.beginPath();ctx.moveTo(0,G+i*(S+G)-G/2);ctx.lineTo(W,G+i*(S+G)-G/2);ctx.stroke();}
+board.forEach((v,i)=>{if(!v)return;const cx=G+(i%N)*(S+G)+S/2,cy=G+Math.floor(i/N)*(S+G)+S/2;
+ctx.font='bold 60px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=15;ctx.shadowColor=v==='X'?'#00f0ff':'#ff007a';
+ctx.fillStyle=v==='X'?'#00f0ff':'#ff007a';ctx.fillText(v,cx,cy);ctx.shadowBlur=0;});};
+const click=(mx,my)=>{if(over||turn!=='X')return;const cx=Math.floor(mx/(S+G)),cy=Math.floor(my/(S+G));
+if(cx<0||cy<0||cx>=N||cy>=N)return;const i=cy*N+cx;if(board[i])return;
+board[i]='X';Audio.click();draw();const w=win();if(w){over=true;score=w==='X'?100:0;Store.d.stats.wins+=w==='X'?1:0;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
+turn='O';setTimeout(()=>{const m=aiMove();if(m>=0){board[m]='O';Audio.click();draw();const w2=win();if(w2){over=true;score=w2==='X'?100:0;Store.d.stats.wins+=w2==='X'?1:0;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
+if(!board.includes(null)){over=true;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}turn='X';}},400);};
+c.onclick=e=>{const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height));};
+let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const r=c.getBoundingClientRect();click((tx-r.left)*(c.width/r.width),(ty-r.top)*(c.height/r.height));};
+draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};}
+};
+</script>
+<!-- PART 5: 3 GAMES + FPS + SNOW + BOOT -->
+<script>
+/* === TETRIS === */
+Games.tetris=function(s){
+s.innerHTML=this._gameUI('Tetris','🧱','Arrows / Swipe');
+const c=this.setup(300,600);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,W=c.width,H=c.height,COLS=10,ROWS=20,S=30;
+const PIECES={I:{c:'#00f0ff',s:[[1,1,1,1]]},O:{c:'#ffe600',s:[[1,1],[1,1]]},T:{c:'#b400ff',s:[[0,1,0],[1,1,1]]},S:{c:'#00ff88',s:[[0,1,1],[1,1,0]]},Z:{c:'#ff007a',s:[[1,1,0],[0,1,1]]},J:{c:'#0088ff',s:[[1,0,0],[1,1,1]]},L:{c:'#ff8800',s:[[0,0,1],[1,1,1]]}};
+let board=Array(ROWS).fill().map(()=>Array(COLS).fill(null)),score=0,over=false,piece=null,px=3,py=0;
+const newPiece=()=>{const k=pick(Object.keys(PIECES));const p=PIECES[k];return{c:k,c2:p.c,shape:p.s.map(r=>[...r]),x:3,y:0};};
+const collide=(shape,x,y)=>{for(let i=0;i<shape.length;i++)for(let j=0;j<shape[i].length;j++)if(shape[i][j]){const ny=y+i,nx=x+j;if(ny>=ROWS||nx<0||nx>=COLS||(board[ny]&&board[ny][nx]))return true;}return false;};
+const merge=()=>{for(let i=0;i<piece.shape.length;i++)for(let j=0;j<piece.shape[i].length;j++)if(piece.shape[i][j])board[py+i][px+j]=piece.c2;};
+const clearLines=()=>{let c=0;for(let i=ROWS-1;i>=0;i--){if(board[i].every(c=>c)){board.splice(i,1);board.unshift(Array(COLS).fill(null));c++;i++;}}
+if(c){score+=c*100;Store.d.stats.combos+=c;Audio.success();Toast.show('+'+c*100+' pts!','ok');}};
+const rotate=()=>{const n=piece.shape.length;const r=Array(n).fill().map(()=>Array(n).fill(0));for(let i=0;i<n;i++)for(let j=0;j<n;j++)r[j][n-1-i]=piece.shape[i][j];if(!collide(r,px,py))piece.shape=r;};
+const drop=()=>{if(collide(piece.shape,px,py+1)){merge();clearLines();piece=newPiece();px=3;py=0;if(collide(piece.shape,px,py)){over=true;Audio.fail();setTimeout(()=>Games.end(score,'tetris'),500);}}else py++;};
+const hardDrop=()=>{while(!collide(piece.shape,px,py+1)){py++;score+=2;}drop();};
+const move=(dx)=>{if(!collide(piece.shape,px+dx,py))px+=dx;};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,H);
+for(let i=0;i<ROWS;i++)for(let j=0;j<COLS;j++){if(board[i][j]){ctx.fillStyle=board[i][j];ctx.shadowBlur=8;ctx.shadowColor=board[i][j];ctx.fillRect(j*S+1,i*S+1,S-2,S-2);ctx.shadowBlur=0;}}
+if(piece&&!over){for(let i=0;i<piece.shape.length;i++)for(let j=0;j<piece.shape[i].length;j++)if(piece.shape[i][j]){ctx.fillStyle=piece.c2;ctx.shadowBlur=10;ctx.shadowColor=piece.c2;ctx.fillRect((px+j)*S+1,(py+i)*S+1,S-2,S-2);ctx.shadowBlur=0;}}};
+const keys=(e)=>{if(over)return;const k=e.key.toLowerCase();if(k==='arrowleft'||k==='a')move(-1);if(k==='arrowright'||k==='d')move(1);if(k==='arrowdown'||k==='s'){drop();score+=1;}if(k==='arrowup'||k==='w')rotate();if(k===' ')hardDrop();e.preventDefault();};
+document.addEventListener('keydown',keys);
+let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.abs(dx)>30){if(dx>0)move(1);else move(-1);}else if(dy>30)hardDrop();else if(Math.abs(dy)<30&&Math.abs(dx)<30)rotate();};
+piece=newPiece();
+const loop=setInterval(()=>{if(!over){drop();draw();s.querySelector('.sc').textContent=fmt(score);}},500);
+this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{clearInterval(loop);document.removeEventListener('keydown',keys);};
+};
+
+/* === BLOCK BLAST === */
+Games.blockblast=function(s){
+s.innerHTML=this._gameUI('Block Blast','🟦','Drag pieces to place');
+const c=this.setup(360,420);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,W=c.width,H=c.height,N=8,S=42,G=2;
+const SHAPES=[[[1]],[[1,1]],[[1],[1]],[[1,1,1]],[[1],[1],[1]],[[1,1],[1,1]],[[1,1,1],[1,1,1]],[[1,0],[1,0],[1,1]],[[0,1],[0,1],[1,1]],[[1,1,1],[0,1,0]],[[1,0],[1,1],[0,1]],[[0,1],[1,1],[1,0]],[[1,0,0],[1,1,1]]];
+let board=Array(N).fill().map(()=>Array(N).fill(0)),pieces=[],score=0,over=false;
+const colors=['#00f0ff','#ff007a','#00ff88','#ffe600','#b400ff','#ff8800'];
+const canPlace=(sh,px,py)=>{for(let i=0;i<sh.length;i++)for(let j=0;j<sh[i].length;j++)if(sh[i][j]){const y=py+i,x=px+j;if(x<0||y<0||x>=N||y>=N||board[y][x])return false;}return true;};
+const place=(sh,px,py,col)=>{for(let i=0;i<sh.length;i++)for(let j=0;j<sh[i].length;j++)if(sh[i][j])board[py+i][px+j]=col;};
+const clearLines=()=>{let c=0;for(let i=0;i<N;i++)if(board[i].every(v=>v)){board[i]=Array(N).fill(0);c++;}
+for(let j=0;j<N;j++){let full=true;for(let i=0;i<N;i++)if(!board[i][j]){full=false;break;}if(full){for(let i=0;i<N;i++)board[i][j]=0;c++;}}
+if(c){score+=c*100;Store.d.stats.combos+=c;Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,15*c);}};
+const newPieces=()=>{pieces=[];for(let i=0;i<3;i++)pieces.push({sh:pick(SHAPES).map(r=>[...r]),col:pick(colors),used:false});};
+const draw=(hover=null)=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,H);
+for(let i=0;i<N;i++)for(let j=0;j<N;j++){const v=board[i][j];ctx.strokeStyle='rgba(180,0,255,.15)';ctx.strokeRect(j*(S+G),i*(S+G),S,S);if(v){ctx.fillStyle=v;ctx.shadowBlur=8;ctx.shadowColor=v;ctx.fillRect(j*(S+G)+1,i*(S+G)+1,S-2,S-2);ctx.shadowBlur=0;}}
+if(hover&&hover.piece&&!hover.piece.used){const{sh,x,y}=hover;for(let i=0;i<sh.length;i++)for(let j=0;j<sh[i].length;j++)if(sh[i][j]){const px=x+j,py=y+i,can=canPlace(sh,x,y);ctx.fillStyle=(can?hover.piece.col:'#ff0044')+'66';ctx.fillRect(px*(S+G)+1,py*(S+G)+1,S-2,S-2);}}
+const py=H-100;pieces.forEach((p,idx)=>{if(p.used)return;const offX=20+idx*120;p.sh.forEach((row,i)=>row.forEach((v,j)=>{if(v){ctx.fillStyle=p.col;ctx.shadowBlur=6;ctx.shadowColor=p.col;ctx.fillRect(offX+j*(S/2+G),py+i*(S/2+G),S/2-2,S/2-2);ctx.shadowBlur=0;}}));});};
+let dragging=null,hover=null;
+const getCell=(mx,my)=>{if(my<N*(S+G))return{x:Math.floor(mx/(S+G)),y:Math.floor(my/(S+G))};return null;};
+c.onmousedown=c.ontouchstart=e=>{const p=e.touches?e.touches[0]:e;const r=c.getBoundingClientRect();const mx=(p.clientX-r.left)*(c.width/r.width),my=(p.clientY-r.top)*(c.height/r.height);const cell=getCell(mx,my);if(cell)return;const py=H-100;pieces.forEach((p,idx)=>{if(p.used)return;const offX=20+idx*120;if(mx>=offX&&my>=py&&my<=py+p.sh.length*(S/2+G)&&mx<=offX+p.sh[0].length*(S/2+G))dragging={piece:p,idx};});};
+const move=(e)=>{if(!dragging)return;const p=e.touches?e.touches[0]:e;const r=c.getBoundingClientRect();const mx=(p.clientX-r.left)*(c.width/r.width),my=(p.clientY-r.top)*(c.height/r.height);const cell=getCell(mx,my);if(cell)hover={...cell,piece:dragging.piece};else hover=null;};
+c.onmousemove=c.ontouchmove=e=>{move(e);e.preventDefault();};
+const end=(e)=>{if(!dragging)return;const p=e.changedTouches?e.changedTouches[0]:e;const r=c.getBoundingClientRect();const mx=(p.clientX-r.left)*(c.width/r.width),my=(p.clientY-r.top)*(c.height/r.height);const cell=getCell(mx,my);if(cell&&canPlace(dragging.piece.sh,cell.x,cell.y)){place(dragging.piece.sh,cell.x,cell.y,dragging.piece.col);dragging.piece.used=true;Audio.coin();clearLines();score+=10;s.querySelector('.sc').textContent=fmt(score);if(pieces.every(p=>p.used))newPieces();
+let canAny=false;outer:for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j]){for(const sh of pieces){if(!sh.used&&canPlace(sh.sh,j,i)){canAny=true;break outer;}}}
+if(!canAny){over=true;setTimeout(()=>Games.end(score,'blockblast'),500);}}
+dragging=null;hover=null;draw();};
+c.onmouseup=c.ontouchend=end;
+newPieces();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};
+};
+
+/* === MINESWEEPER === */
+Games.mines=function(s){
+s.innerHTML=this._gameUI('Minesweeper','💣','Tap reveal · long-press flag');
+const c=this.setup(360,360);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,N=10,S=32,G=2,W=N*S+(N+1)*G;c.width=W;c.height=W;
+let board=[],revealed=[],flagged=[],mines=15,score=0,over=false,first=true;
+const colors=['','#00f0ff','#00ff88','#ff007a','#b400ff','#ff8800','#ffe600','#ff4400','#ff0044'];
+const init=()=>{board=Array(N).fill().map(()=>Array(N).fill(0));revealed=Array(N).fill().map(()=>Array(N).fill(false));flagged=Array(N).fill().map(()=>Array(N).fill(false));let placed=0;while(mines>placed){const x=ri(0,N-1),y=ri(0,N-1);if(!board[x][y]&&!(x===0&&y===0)){board[x][y]=-1;placed++;}}
+for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(board[i][j]!==-1){let c=0;for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){const ni=i+di,nj=j+dj;if(ni>=0&&nj>=0&&ni<N&&nj<N&&board[ni][nj]===-1)c++;}board[i][j]=c;}}};
+const flood=(x,y)=>{if(x<0||y<0||x>=N||y>=N||revealed[x][y]||flagged[x][y])return;revealed[x][y]=true;if(board[x][y]===0){for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)flood(x+i,y+j);}};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);
+for(let i=0;i<N;i++)for(let j=0;j<N;j++){const x=G+j*(S+G),y=G+i*(S+G);if(revealed[i][j]){ctx.fillStyle=board[i][j]===-1?'#ff0044':'rgba(180,0,255,.2)';ctx.fillRect(x,y,S,S);ctx.strokeStyle='rgba(180,0,255,.4)';ctx.strokeRect(x,y,S,S);if(board[i][j]>0){ctx.fillStyle=colors[board[i][j]];ctx.font='bold 18px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(board[i][j],x+S/2,y+S/2);}
+if(board[i][j]===-1){ctx.fillStyle='#fff';ctx.font='20px Arial';ctx.fillText('💣',x+S/2,y+S/2);}}
+else{ctx.fillStyle='rgba(180,0,255,.4)';ctx.fillRect(x,y,S,S);ctx.strokeStyle='#b400ff';ctx.strokeRect(x,y,S,S);if(flagged[i][j]){ctx.font='18px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🚩',x+S/2,y+S/2);}}}};
+const checkWin=()=>{let r=0;for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(revealed[i][j])r++;return r===N*N-mines;};
+const click=(mx,my,right=false)=>{if(over)return;const cx=Math.floor((mx-G)/(S+G)),cy=Math.floor((my-G)/(S+G));if(cx<0||cy<0||cx>=N||cy>=N)return;
+if(right||flagged[cy][cx]){if(!revealed[cy][cx])flagged[cy][cx]=!flagged[cy][cx];}
+else{if(first){first=false;while(board[cy][cx]===-1)init();}
+if(flagged[cy][cx])return;if(board[cy][cx]===-1){revealed[cy][cx]=true;over=true;Audio.fail();for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(board[i][j]===-1)revealed[i][j]=true;draw();setTimeout(()=>Games.end(score,'minesweeper'),800);return;}
+flood(cy,cx);score+=10;Audio.click();if(checkWin()){score+=500;Store.d.stats.wins++;over=true;Confetti.burst(innerWidth/2,innerHeight/2,40);setTimeout(()=>Games.end(score,'minesweeper'),500);}}
+draw();};
+c.onclick=e=>{const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height));};
+c.oncontextmenu=e=>{e.preventDefault();const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height),true);};
+let pt=null;c.ontouchstart=e=>{pt={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()};};
+c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-pt.x,dy=e.changedTouches[0].clientY-pt.y;const dt=Date.now()-pt.t;const r=c.getBoundingClientRect();const x=(pt.x-r.left)*(c.width/r.width),y=(pt.y-r.top)*(c.height/r.height);
+if(Math.abs(dx)<10&&Math.abs(dy)<10){if(dt>500)click(x,y,true);else click(x,y);}};
+init();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};
+};
+
+/* === FPS COUNTER === */
+const FPS={last:performance.now(),frames:0,
+init(){this.loop();},
+loop(){const now=performance.now();this.frames++;if(now-this.last>=1000){if(Store.d.showFPS)$('#fps').textContent=this.frames+' FPS';this.frames=0;this.last=now;}if(this.raf=requestAnimationFrame(()=>this.loop()))return;}};
+
+/* === HOLIDAY EFFECTS === */
+const Holi={
+init(){const m=new Date().getMonth();const d=new Date().getDate();
+const isWinter=(m===11&&d>=15)||(m===0&&d<15)||(m===11);
+const isHalloween=m===9&&d>=25;
+if(isWinter){this.snow();Toast.show('❄️ Winter Event Active!','ok');}
+else if(isHalloween){document.body.style.background='radial-gradient(circle,#2a0808,#0a0000)';}},
+snow(){for(let i=0;i<30;i++){const e=document.createElement('div');e.className='snow';e.textContent=pick(['❄','❅','❆']);e.style.left=rand(0,innerWidth)+'px';e.style.fontSize=rand(10,20)+'px';e.style.animationDuration=rand(5,12)+'s';e.style.animationDelay=rand(0,5)+'s';e.style.opacity=rand(.3,1);document.body.appendChild(e);}}
+};
+
+/* === BOOT === */
+window.addEventListener('load',()=>{
+Store.load();ThemeSys.apply(Store.d.currentTheme);UI.updateTop();
+Player.tickEnergy();Daily.checkStreak();Daily.genQuests();
+AchSys.check();BgFx.init();FPS.init();Holi.init();
+setInterval(()=>Player.tickEnergy(),5000);
+setInterval(()=>Store.save(),30000);
+UI.show('home');
+setTimeout(()=>{$('#loading').classList.add('hide');},2500);
+});
+setTimeout(()=>{if($('#loading')&&!$('#loading').classList.contains('hide'))$('#loading').classList.add('hide');},3500);
+</script>
+<!-- BODY HTML -->
+<div id="loading"><div class="spin"></div><div class="txt">BLOCKVERSE</div></div>
+<canvas id="bgCanvas"></canvas>
+<div id="fps"></div>
+<div class="top">
+<div class="t-btn lvl">⭐ <span id="lvl">1</span></div>
+<div class="t-btn gold">🪙 <span id="coins">0</span></div>
+<div class="t-btn dia">💎 <span id="diamonds">0</span></div>
+<div class="t-btn en">⚡ <span id="energy">100</span></div>
+</div>
+<div id="main"></div>
+<div class="bottom">
+<div class="b-btn on" onclick="UI.show('home')"><span class="em">🏠</span><span>HOME</span></div>
+<div class="b-btn" onclick="UI.show('games')"><span class="em">🎮</span><span>GAMES</span></div>
+<div class="b-btn" onclick="UI.show('shop')"><span class="em">🛒</span><span>SHOP</span></div>
+<div class="b-btn" onclick="UI.show('achievements')"><span class="em">🏆</span><span>TROPHIES</span></div>
+<div class="b-btn" onclick="UI.show('settings')"><span class="em">⚙️</span><span>SETTINGS</span></div>
+</div>
+<div id="toast-zone"></div>
+<div id="modal" class="hide"><div id="mbox"></div></div>
+</body></html>
+
+</body></html>
