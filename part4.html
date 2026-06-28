@@ -1,346 +1,210 @@
-/* === UI MANAGER === */
+<!-- PART 4: UI SCREENS + 4 GAMES -->
+<script>
 const UI={
-current:'home',gameCleanup:null,
-updateTop(){$('#coins').textContent=fmt(Store.d.coins);$('#diamonds').textContent=fmt(Store.d.diamonds);
-$('#energy').textContent=Store.d.energy;$('#lvl').textContent=Store.d.level;},
-show(name){Audio.click();this.current=name;const main=$('#main');main.innerHTML='';
-const s=document.createElement('div');s.className='screen';
-if(name==='home')this.home(s);else if(name==='profile')this.profile(s);
-else if(name==='games')this.games(s);else if(name==='achievements')this.achievements(s);
-else if(name==='shop')this.shop(s);else if(name==='daily')this.daily(s);
-else if(name==='wheel')this.wheel(s);else if(name==='battlepass')this.battlepass(s);
-else if(name==='themes')this.themes(s);else if(name==='stats')this.stats(s);
-else if(name==='settings')this.settings(s);else if(name==='credits')this.credits(s);
-else if(name==='snake')Games.snake(s);else if(name==='2048')Games.puzzle(s);
-else if(name==='memory')Games.memory(s);else if(name==='tictactoe')Games.ttt(s);
-else if(name==='tetris')Games.tetris(s);else if(name==='blockblast')Games.blockblast(s);
+current:'home',game:null,
+updateTop(){$('#coins').textContent=fmt(Store.d.coins);$('#diamonds').textContent=fmt(Store.d.diamonds);$('#energy').textContent=Store.d.energy;$('#lvl').textContent=Store.d.level;},
+show(name){Audio.click();this.current=name;const main=$('#main');main.innerHTML='';const s=document.createElement('div');s.className='screen';
+if(name==='home')this.home(s);else if(name==='profile')this.profile(s);else if(name==='games')this.games(s);
+else if(name==='achievements')this.achievements(s);else if(name==='shop')this.shop(s);else if(name==='daily')this.daily(s);
+else if(name==='wheel')this.wheel(s);else if(name==='battlepass')this.battlepass(s);else if(name==='themes')this.themes(s);
+else if(name==='stats')this.stats(s);else if(name==='settings')this.settings(s);else if(name==='credits')this.credits(s);
+else if(name==='snake')Games.snake(s);else if(name==='2048')Games.puzzle(s);else if(name==='memory')Games.memory(s);
+else if(name==='tictactoe')Games.ttt(s);else if(name==='tetris')Games.tetris(s);else if(name==='blockblast')Games.blockblast(s);
 else if(name==='minesweeper')Games.mines(s);
 main.appendChild(s);s.scrollTop=0;},
-home(s){const vip=Store.d.vip?'<span class="vip">\u2605 VIP</span>':'';
-s.innerHTML=`<div class="panel"><div class="row" style="justify-content:space-between">
-<div><div style="font-size:18px;font-weight:900">${Store.d.avatar} ${Store.d.username} ${vip}</div>
-<div style="font-size:11px;color:var(--mut)">${Store.d.title} \u00B7 <span class="rk rk-${Store.d.rank}">${Store.d.rank}</span></div></div>
-<div style="text-align:right"><div style="font-size:24px;font-weight:900;color:var(--n2)">\u2B50 ${Store.d.level}</div>
-<div class="bar" style="width:120px"><div class="fill" style="width:${(Store.d.xp/Player.xpNeeded(Store.d.level)*100)|0}%"></div></div>
-<div style="font-size:9px;color:var(--mut);margin-top:2px">${Store.d.xp}/${Player.xpNeeded(Store.d.level)} XP</div></div></div>
-<div style="font-size:11px;color:var(--mut)">Energy</div>
-<div class="energy"><div class="fill" style="width:${(Store.d.energy/Store.d.energyMax*100)|0}%"></div></div></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\u26A1 Quick Actions</div>
-<div class="row"><button class="btn ok" onclick="Daily.claim()">\uD83C\uDF81 Daily</button>
-<button class="btn warn" onclick="UI.show('wheel')">\uD83C\uDFB0 Wheel</button>
-<button class="btn" onclick="UI.show('battlepass')">\uD83C\uDFAB Pass</button></div></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83C\uDFAE Menu</div>
-<div class="grid">
-<div class="tile" onclick="UI.show('games')"><span class="em">\uD83C\uDFAE</span><div class="nm">Games</div><div class="ds">Play</div></div>
-<div class="tile" onclick="UI.show('profile')"><span class="em">\uD83D\uDC64</span><div class="nm">Profile</div><div class="ds">Stats</div></div>
-<div class="tile" onclick="UI.show('achievements')"><span class="em">\uD83C\uDFC6</span><div class="nm">Achieves</div><div class="ds">${Object.keys(Store.d.achievements).length}/${ACHS.length}</div></div>
-<div class="tile" onclick="UI.show('shop')"><span class="em">\uD83D\uDED2</span><div class="nm">Shop</div><div class="ds">Buy</div></div>
-<div class="tile" onclick="UI.show('daily')"><span class="em">\uD83D\uDCC5</span><div class="nm">Daily</div><div class="ds">Quests</div></div>
-<div class="tile" onclick="UI.show('wheel')"><span class="em">\uD83C\uDFB0</span><div class="nm">Wheel</div><div class="ds">Try luck</div></div>
-<div class="tile" onclick="UI.show('battlepass')"><span class="em">\uD83C\uDFAB</span><div class="nm">Pass</div><div class="ds">S${Store.d.season}</div></div>
-<div class="tile" onclick="UI.show('themes')"><span class="em">\uD83C\uDFA8</span><div class="nm">Themes</div><div class="ds">${Store.d.ownedThemes.length}</div></div>
-<div class="tile" onclick="UI.show('stats')"><span class="em">\uD83D\uDCCA</span><div class="nm">Stats</div><div class="ds">Records</div></div>
-<div class="tile" onclick="UI.show('settings')"><span class="em">\u2699\uFE0F</span><div class="nm">Settings</div><div class="ds">Config</div></div>
-<div class="tile" onclick="UI.show('credits')"><span class="em">\u2139\uFE0F</span><div class="nm">About</div><div class="ds">v3.0</div></div>
-<div class="tile" onclick="Secret.check()" style="background:rgba(255,0,68,.1)"><span class="em">\uD83D\uDD12</span><div class="nm">Secret</div><div class="ds">???</div></div>
-</div></div>`;},
-profile(s){const s2=Store.d.stats;
-s.innerHTML=`<div class="panel"><div style="font-size:60px;text-align:center;margin:10px 0;filter:drop-shadow(0 0 20px var(--neon))">${Store.d.avatar}</div>
-<div style="text-align:center;font-size:22px;font-weight:900">${Store.d.username} ${Store.d.vip?'<span class="vip">\u2605 VIP</span>':''}</div>
-<div style="text-align:center;margin:8px 0"><span class="rk rk-${Store.d.rank}" style="font-size:18px">${Store.d.rank}</span></div>
-<div class="row"><input class="txt" id="userInput" value="${Store.d.username}">
-<input class="txt" id="clanInput" value="${Store.d.clan}" placeholder="Clan"></div>
-<div class="row"><input class="txt" id="titleInput" value="${Store.d.title}" placeholder="Title"></div>
-<div class="row"><button class="btn ok" onclick="UI.saveProfile()">\uD83D\uDCBE Save</button>
-<button class="btn" onclick="UI.changeAvatar()">\uD83C\uDFAD Avatar</button></div></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCCA Statistics</div>
-<div class="row" style="justify-content:space-between"><span>\uD83C\uDFAE Played</span><b>${fmt(s2.gamesPlayed)}</b></div>
-<div class="row" style="justify-content:space-between"><span>\uD83E\uDD47 Wins</span><b>${fmt(s2.wins)}</b></div>
-<div class="row" style="justify-content:space-between"><span>\u2B50 Best Score</span><b>${fmt(s2.highestScore)}</b></div>
-<div class="row" style="justify-content:space-between"><span>\uD83D\uDCB0 Coins</span><b>${fmt(s2.totalCoins)}</b></div>
-<div class="row" style="justify-content:space-between"><span>\uD83D\uDC8E Diamonds</span><b>${fmt(s2.totalDiamonds)}</b></div></div>`;},
-saveProfile(){Store.d.username=$('#userInput').value.trim()||Store.d.username;
-Store.d.clan=$('#clanInput').value.trim();Store.d.title=$('#titleInput').value.trim()||'Newbie';
-Store.save();Toast.show('\u2705 Saved','ok');Audio.success();},
-changeAvatar(){const a=pick(Store.d.ownedAvatars);Store.d.avatar=a;Store.save();UI.show('profile');Toast.show('\uD83C\uDFAD '+a);},
-games(s){const GAMES=[
-{id:'snake',nm:'Snake',em:'\uD83D\uDC0D',cost:0},{id:'2048',nm:'2048',em:'\uD83E\uDDE9',cost:0},
-{id:'memory',nm:'Memory',em:'\uD83E\uDDE0',cost:0},{id:'tictactoe',nm:'TicTacToe',em:'\u26AB',cost:0},
-{id:'minesweeper',nm:'Minesweeper',em:'\uD83D\uDCA3',cost:0},{id:'tetris',nm:'Tetris',em:'\uD83E\uDDF1',cost:100},
-{id:'blockblast',nm:'Block Blast',em:'\uD83D\uDFE6',cost:100}];
-let h='<div class="panel"><div style="font-weight:800">\uD83C\uDFAE Library</div></div><div class="grid">';
-GAMES.forEach(g=>{const o=Store.d.unlockedGames.includes(g.id);const best=Store.d.bestScores[g.id]||0;
-h+=`<div class="tile ${(!o&&g.cost)?'lk':''}" onclick="UI.tryGame('${g.id}',${g.cost})">
-<span class="em">${g.em}</span><div class="nm">${g.nm}</div><div class="ds">${o?'Best: '+fmt(best):'\uD83D\uDD12 '+fmt(g.cost)}</div></div>`;});
-h+='</div>';s.innerHTML=h;},
+
+home(s){
+const vipBadge=Store.d.vip?'<span class="vip">★ VIP</span>':'';
+const h=`<div class="panel"><div class="row" style="justify-content:space-between"><div><div style="font-size:18px;font-weight:900">${Store.d.avatar} ${Store.d.username} ${vipBadge}</div><div style="font-size:11px;color:var(--mut)">${Store.d.title} · <span class="rk rk-${Store.d.rank}">${Store.d.rank}</span></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:900;color:var(--n2)">⭐ ${Store.d.level}</div><div class="bar" style="width:120px"><div class="fill" style="width:${(Store.d.xp/Player.xpNeeded(Store.d.level)*100)|0}%"></div></div><div style="font-size:9px;color:var(--mut);margin-top:2px">${Store.d.xp}/${Player.xpNeeded(Store.d.level)} XP</div></div></div><div style="font-size:11px;color:var(--mut)">Energy</div><div class="energy"><div class="fill" style="width:${(Store.d.energy/Store.d.energyMax*100)|0}%"></div></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">⚡ Quick Actions</div><div class="row"><button class="btn ok" onclick="Daily.claim()">🎁 Daily Reward</button><button class="btn warn" onclick="UI.show('wheel')">🎰 Lucky Wheel</button><button class="btn" onclick="UI.show('battlepass')">🎫 Battle Pass</button></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">🎮 Menu</div><div class="grid"><div class="tile" onclick="UI.show('games')"><span class="em">🎮</span><div class="nm">Games</div><div class="ds">All games</div></div><div class="tile" onclick="UI.show('profile')"><span class="em">👤</span><div class="nm">Profile</div><div class="ds">Your stats</div></div><div class="tile" onclick="UI.show('achievements')"><span class="em">🏆</span><div class="nm">Achievements</div><div class="ds">${Object.keys(Store.d.achievements).length}/${ACHS.length}</div></div><div class="tile" onclick="UI.show('shop')"><span class="em">🛒</span><div class="nm">Shop</div><div class="ds">Buy items</div></div><div class="tile" onclick="UI.show('daily')"><span class="em">📅</span><div class="nm">Daily</div><div class="ds">Quests & login</div></div><div class="tile" onclick="UI.show('wheel')"><span class="em">🎰</span><div class="nm">Wheel</div><div class="ds">Try luck</div></div><div class="tile" onclick="UI.show('battlepass')"><span class="em">🎫</span><div class="nm">Battle Pass</div><div class="ds">S${Store.d.season}</div></div><div class="tile" onclick="UI.show('themes')"><span class="em">🎨</span><div class="nm">Themes</div><div class="ds">${Store.d.ownedThemes.length} owned</div></div><div class="tile" onclick="UI.show('stats')"><span class="em">📊</span><div class="nm">Statistics</div><div class="ds">Your record</div></div><div class="tile" onclick="UI.show('settings')"><span class="em">⚙️</span><div class="nm">Settings</div><div class="ds">Audio, save</div></div><div class="tile" onclick="UI.show('credits')"><span class="em">ℹ️</span><div class="nm">About</div><div class="ds">v3.0</div></div><div class="tile" onclick="Secret.check()" style="background:rgba(255,0,68,.1)"><span class="em">🔒</span><div class="nm">Secret</div><div class="ds">???</div></div></div></div><div style="text-align:center;color:var(--mut);font-size:10px;padding:10px">BLOCKVERSE V3.0 · Made with ❤️</div>`;
+s.innerHTML=h;},
+
+profile(s){
+const s2=Store.d.stats;
+const h=`<div class="panel"><div style="font-size:60px;text-align:center;margin:10px 0;filter:drop-shadow(0 0 20px var(--neon))">${Store.d.avatar}</div><div style="text-align:center;font-size:22px;font-weight:900">${Store.d.username} ${Store.d.vip?'<span class="vip">★ VIP</span>':''}</div><div style="text-align:center;margin:8px 0"><span class="rk rk-${Store.d.rank}" style="font-size:18px">${Store.d.rank}</span></div><div class="row"><input class="txt" id="userInput" value="${Store.d.username}" placeholder="Username"><input class="txt" id="clanInput" value="${Store.d.clan}" placeholder="Clan"></div><div class="row"><input class="txt" id="titleInput" value="${Store.d.title}" placeholder="Title"></div><div class="row"><button class="btn ok" onclick="UI.saveProfile()">💾 Save</button><button class="btn" onclick="UI.changeAvatar()">🎭 Avatar</button></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📊 Statistics</div><div class="row" style="justify-content:space-between"><span>🎮 Played</span><b>${fmt(s2.gamesPlayed)}</b></div><div class="row" style="justify-content:space-between"><span>🥇 Wins</span><b>${fmt(s2.wins)}</b></div><div class="row" style="justify-content:space-between"><span>💔 Losses</span><b>${fmt(s2.losses)}</b></div><div class="row" style="justify-content:space-between"><span>⭐ Best Score</span><b>${fmt(s2.highestScore)}</b></div><div class="row" style="justify-content:space-between"><span>📈 Total Score</span><b>${fmt(s2.totalScore)}</b></div><div class="row" style="justify-content:space-between"><span>🎯 Accuracy</span><b>${(s2.accuracy*100).toFixed(1)}%</b></div><div class="row" style="justify-content:space-between"><span>⏱ Play Time</span><b>${Math.floor(s2.playTime/60)}m</b></div><div class="row" style="justify-content:space-between"><span>🔥 Longest Streak</span><b>${s2.longestStreak}</b></div><div class="row" style="justify-content:space-between"><span>💰 Total Coins</span><b>${fmt(s2.totalCoins)}</b></div><div class="row" style="justify-content:space-between"><span>💎 Total Diamonds</span><b>${fmt(s2.totalDiamonds)}</b></div><div class="row" style="justify-content:space-between"><span>✨ XP Earned</span><b>${fmt(s2.xpEarned)}</b></div></div>`;
+s.innerHTML=h;},
+
+saveProfile(){Store.d.username=$('#userInput').value.trim()||Store.d.username;Store.d.clan=$('#clanInput').value.trim();Store.d.title=$('#titleInput').value.trim()||'Newbie';Store.save();Toast.show('✅ Saved','ok');Audio.success();},
+changeAvatar(){const a=pick(Store.d.ownedAvatars);Store.d.avatar=a;Store.save();UI.show('profile');Audio.click();Toast.show('🎭 New avatar: '+a);},
+
+games(s){
+const GAMES=[{id:'snake',nm:'Snake',em:'🐍',ds:'Classic',cost:0,unlock:0},{id:'2048',nm:'2048',em:'🧩',ds:'Puzzle',cost:0,unlock:0},{id:'memory',nm:'Memory',em:'🧠',ds:'Match cards',cost:0,unlock:0},{id:'tictactoe',nm:'Tic Tac Toe',em:'⭕',ds:'AI mode',cost:0,unlock:0},{id:'minesweeper',nm:'Minesweeper',em:'💣',ds:'Avoid mines',cost:0,unlock:0},{id:'tetris',nm:'Tetris',em:'🧱',ds:'Stack blocks',cost:100,unlock:0},{id:'blockblast',nm:'Block Blast',em:'🟦',ds:'Match lines',cost:100,unlock:0}];
+let html='<div class="panel"><div style="font-weight:800">🎮 Game Library</div><div style="font-size:11px;color:var(--mut);margin-top:4px">More games coming soon!</div></div><div class="grid">';
+GAMES.forEach(g=>{const owned=Store.d.unlockedGames.includes(g.id);const lk=!owned&&g.cost>0;const best=Store.d.bestScores[g.id]||0;
+html+=`<div class="tile ${lk?'lk':''}" onclick="UI.tryGame('${g.id}',${g.cost})"><span class="em">${g.em}</span><div class="nm">${g.nm}</div><div class="ds">${owned?'Best: '+fmt(best):'🔒 '+fmt(g.cost)+' 🪙'}</div></div>`;});
+if(Store.d.hiddenGamesUnlocked)html+=`<div class="tile" onclick="UI.show('snake')"><span class="em">⭐</span><div class="nm">HIDDEN</div><div class="ds">Special</div></div>`;
+html+='</div>';s.innerHTML=html;},
+
 tryGame(id,cost){if(Store.d.unlockedGames.includes(id)){UI.show(id);return;}
-if(Store.d.coins<cost)return Toast.show('\u274C Need '+fmt(cost)+' \uD83E\uDE99','err');
-if(!confirm('Unlock for '+fmt(cost)+'?'))return;
-Store.d.coins-=cost;Store.d.unlockedGames.push(id);Store.d.shopCount=(Store.d.shopCount||0)+1;
-Store.save();UI.updateTop();Audio.success();Toast.show('\u2705 Unlocked!','ok');UI.show('games');AchSys.check();},
-achievements(s){const list=ACHS.map(a=>({...a,done:!!Store.d.achievements[a.code]})).sort((a,b)=>(b.done?1:0)-(a.done?1:0));
-let h='<div class="tabs"><div class="tab on" onclick="UI.tabAch(this,1)">All</div><div class="tab" onclick="UI.tabAch(this,2)">Done</div><div class="tab" onclick="UI.tabAch(this,3)">Locked</div></div><div id="achList">';
-list.forEach(a=>{const don=a.done?'done':'';h+=`<div class="ach ${don}" data-state="${a.done?1:0}">
-<div class="ic ${a.done?'':'lk'}">${a.done?a.ic:'\uD83D\uDD12'}</div>
-<div class="info"><div class="ti">${a.ti}</div><div class="de">${a.de}</div><div class="rw">${a.rw}</div></div></div>`;});
-h+='</div>';s.innerHTML=h;},
-tabAch(el,f){$$('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');
-$$('.ach').forEach(a=>{const d=+a.dataset.state;
-if(f===1)a.style.display='';else if(f===2)a.style.display=d?'block':'none';else a.style.display=d?'none':'block';});},
-shop(s){let h='<div class="tabs">';const cats=['themes','avatars','vip'];
-cats.forEach((c,i)=>h+=`<div class="tab ${i===0?'on':''}" onclick="UI.tabShop(this,'${c}')">${c}</div>`);h+='</div>';
-cats.forEach((c,i)=>{h+=`<div class="panel shop-c" data-cat="${c}" style="${i?'display:none':''}">`;
-if(c==='themes')THEMES.forEach(t=>{const o=Store.d.ownedThemes.includes(t.id),eq=Store.d.currentTheme===t.id;
-h+=`<div class="row" style="justify-content:space-between"><div><b>${t.ic} ${t.nm}</b>${o?'':' \u00B7 '+fmt(t.cost)+' \uD83E\uDE99'}${eq?' \u2705':''}</div>
-${o?(eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="ThemeSys.apply('${t.id}');UI.show('shop')">Use</button>`)
-:`<button class="btn sm" onclick="ThemeSys.buy('${t.id}')">Buy</button>`}</div>`;});
-else if(c==='vip'){h+=`<div style="padding:10px;background:var(--glass);border-radius:8px;margin-bottom:8px"><b>\u2B50 VIP 7 days</b> \u00B7 999 \uD83E\uDE99</div>
-<button class="btn warn full" onclick="UI.buyVIP(7)">\u2B50 7 days</button>
-<div style="padding:10px;background:var(--glass);border-radius:8px;margin:8px 0"><b>\uD83D\uDC8E VIP 30 days</b> \u00B7 49 \uD83D\uDC8E</div>
-<button class="btn full" onclick="UI.buyVIP(30)">\uD83D\uDC8E 30 days</button>`;}
-else Store.d.ownedAvatars.forEach(a=>{const eq=Store.d.avatar===a;
-h+=`<div class="row" style="justify-content:space-between"><div style="font-size:24px">${a}</div>
-${eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="Store.d.avatar='${a}';Store.save();UI.show('shop')">Use</button>`}</div>`;});
-h+='</div>';});s.innerHTML=h;},
+if(Store.d.coins<cost)return Toast.show('❌ Need '+fmt(cost)+' 🪙','err');
+if(!confirm('Unlock for '+fmt(cost)+' 🪙?'))return;
+Store.d.coins-=cost;Store.d.unlockedGames.push(id);Store.d.shopCount=(Store.d.shopCount||0)+1;Store.save();UI.updateTop();Audio.success();Toast.show('✅ Unlocked!','ok');UI.show('games');AchSys.check();},
+
+achievements(s){const list=ACHS.map(a=>({...a,done:!!Store.d.achievements[a.code]}));list.sort((a,b)=>(b.done?1:0)-(a.done?1:0));
+let html='<div class="tabs"><div class="tab on" onclick="UI.tabAch(this,1)">All</div><div class="tab" onclick="UI.tabAch(this,2)">Done</div><div class="tab" onclick="UI.tabAch(this,3)">Locked</div></div><div id="achList">';
+list.forEach(a=>{const don=a.done?'done':'';const ic=a.done?a.ic:'🔒';
+html+=`<div class="ach ${don}" data-state="${a.done?1:0}"><div class="ic ${a.done?'':'lk'}">${ic}</div><div class="info"><div class="ti">${a.ti}</div><div class="de">${a.de}</div><div class="rw">${a.rw}</div></div></div>`;});
+html+='</div>';s.innerHTML=html;},
+
+tabAch(el,f){$$('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');$$('.ach').forEach(a=>{const d=+a.dataset.state;if(f===1)a.style.display='';else if(f===2)a.style.display=d?'block':'none';else a.style.display=d?'none':'block';});},
+
+shop(s){const cats=[{id:'themes',nm:'🎨 Themes'},{id:'avatars',nm:'🎭 Avatars'},{id:'vip',nm:'⭐ VIP'}];
+let html='<div class="tabs">';cats.forEach((c,i)=>html+=`<div class="tab ${i===0?'on':''}" onclick="UI.tabShop(this,'${c.id}')">${c.nm}</div>`);html+='</div>';
+cats.forEach((c,i)=>{html+=`<div class="panel shop-c" data-cat="${c.id}" style="${i?'display:none':''}"><div style="font-weight:800;margin-bottom:8px">${c.nm}</div>`;
+if(c.id==='themes')THEMES.forEach(t=>{const o=Store.d.ownedThemes.includes(t.id);const eq=Store.d.currentTheme===t.id;
+html+=`<div class="row" style="justify-content:space-between"><div><b>${t.ic} ${t.nm}</b>${o?'':' · '+fmt(t.cost)+' 🪙'}${eq?' · ✅':''}</div>${o?(eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="ThemeSys.apply('${t.id}');UI.show('shop')">Use</button>`):`<button class="btn sm" onclick="ThemeSys.buy('${t.id}')">Buy</button>`}</div>`;});
+else if(c.id==='avatars')Store.d.ownedAvatars.forEach(a=>{const eq=Store.d.avatar===a;
+html+=`<div class="row" style="justify-content:space-between"><div style="font-size:24px">${a}</div>${eq?'<button class="btn ok sm" disabled>Active</button>':`<button class="btn sm" onclick="Store.d.avatar='${a}';Store.save();UI.show('shop')">Use</button>`}</div>`;});
+else if(c.id==='vip'){html+=`<div style="padding:10px;background:var(--glass);border-radius:8px;margin-bottom:8px"><b>⭐ VIP — 7 days</b> · 999 🪙<br><span style="font-size:11px;color:var(--mut)">2x coins/XP, exclusive badge, animated title</span></div>`;
+html+=`<div style="padding:10px;background:var(--glass);border-radius:8px;margin-bottom:8px"><b>💎 VIP — 30 days</b> · 49 💎<br><span style="font-size:11px;color:var(--mut)">All VIP perks + 5000 🪙 bonus</span></div>`;
+html+=`<button class="btn warn full" onclick="UI.buyVIP(7)">⭐ 7 days (999 🪙)</button> <button class="btn full" onclick="UI.buyVIP(30)">💎 30 days (49 💎)</button>`;}
+html+='</div>';});s.innerHTML=html;},
+
 tabShop(el,cat){$$('.tab').forEach(t=>t.classList.remove('on'));el.classList.add('on');$$('.shop-c').forEach(p=>p.style.display=p.dataset.cat===cat?'block':'none');},
-buyVIP(d){const cc=d===7?999:0,cd=d===30?49:0;
-if(Store.d.coins<cc||Store.d.diamonds<cd)return Toast.show('\u274C Not enough','err');
-Store.d.coins-=cc;Store.d.diamonds-=cd;if(d===30)Player.addCoins(5000,'vip');
-Store.d.vip=true;Store.d.vipUntil=Date.now()+d*86400000;Store.save();UI.updateTop();
-Toast.show('\u2B50 VIP Active!','ok');Confetti.burst(innerWidth/2,innerHeight/2,40);Audio.success();AchSys.check();},
-daily(s){Daily.genQuests();let h=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCC5 Daily</div>
-<div style="font-size:11px;color:var(--mut);margin-bottom:8px">Streak: \uD83D\uDD25 ${Store.d.streak} days</div>
-<button class="btn ok full" onclick="Daily.claim()" ${Daily.canClaim()?'':'disabled'}>${Daily.canClaim()?'\uD83C\uDF81 Claim':'\u23F1 Already claimed'}</button></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCCB Quests</div>`;
+
+buyVIP(days){const costC=days===7?999:0,costD=days===30?49:0;
+if(Store.d.coins<costC||Store.d.diamonds<costD)return Toast.show('❌ Not enough currency','err');
+if(Store.d.vip&&Store.d.vipUntil>Date.now())return Toast.show('❌ Already VIP','err');
+Store.d.coins-=costC;Store.d.diamonds-=costD;
+if(days===30)Player.addCoins(5000,'vip');
+Store.d.vip=true;Store.d.vipUntil=Date.now()+days*86400000;Store.save();UI.updateTop();Toast.show('⭐ VIP Active!','ok');Confetti.burst(innerWidth/2,innerHeight/2,40);Audio.success();AchSys.check();},
+
+daily(s){Daily.genQuests();
+const h=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">📅 Daily Reward</div><div style="font-size:11px;color:var(--mut);margin-bottom:8px">Streak: 🔥 ${Store.d.streak} days</div><button class="btn ok full" onclick="Daily.claim()" ${Daily.canClaim()?'':'disabled'}>${Daily.canClaim()?'🎁 Claim Now':'⏱ Already claimed'}</button></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📋 Daily Quests</div>`;
 Store.d.dailyQuests.forEach(q=>{const p=Math.min(100,(q.cur/q.goal*100)|0);
-h+=`<div class="ach ${q.done?'done':''}" style="margin-bottom:8px"><div class="ic">${q.done?'\u2705':'\uD83D\uDCCC'}</div>
-<div class="info"><div class="ti">${q.desc}</div><div class="bar"><div class="fill" style="width:${p}%"></div></div>
-<div style="font-size:10px;color:var(--mut);margin-top:2px">${q.cur}/${q.goal} \u00B7 ${q.rw}</div></div></div>`;});
+h+=`<div class="ach ${q.done?'done':''}" style="margin-bottom:8px"><div class="ic">${q.done?'✅':'📌'}</div><div class="info"><div class="ti">${q.desc}</div><div class="bar"><div class="fill" style="width:${p}%"></div></div><div style="font-size:10px;color:var(--mut);margin-top:2px">${q.cur}/${q.goal} · ${q.rw}</div></div></div>`;});
 h+='</div>';s.innerHTML=h;},
-wheel(s){const can=Wheel.canSpin();const rem=can?0:3600-Math.floor((Date.now()-Store.d.lastSpin)/1000);
-let h=`<div class="panel" style="text-align:center"><div style="font-size:80px;margin:20px 0;filter:drop-shadow(0 0 30px var(--n4))">\uD83C\uDFB0</div>
-<div style="font-weight:900;font-size:22px;margin-bottom:8px">LUCKY WHEEL</div>
-<div style="font-size:12px;color:var(--mut);margin-bottom:14px">50+ rewards \u00B7 Jackpot 2000 + 10</div>
-${can?'<button class="btn warn full" onclick="Wheel.spin();UI.show(\'wheel\')">\uD83C\uDFB0 SPIN!</button>':`<button class="btn full" disabled>\u23F1 ${Math.floor(rem/60)}m ${rem%60}s</button>`}
-</div><div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83C\uDF81 Rewards</div>`;
-WHEEL_REWARDS.forEach(r=>{h+=`<div class="row" style="justify-content:space-between;font-size:12px"><span>${r.t}</span><span style="color:var(--mut)">${(r.w/100*100).toFixed(0)}%</span></div>`;});
-h+='</div>';s.innerHTML=h;},
+
+wheel(s){const canSpin=Wheel.canSpin();const rem=canSpin?0:3600-Math.floor((Date.now()-Store.d.lastSpin)/1000);
+const h=`<div class="panel" style="text-align:center"><div style="font-size:80px;margin:20px 0;filter:drop-shadow(0 0 30px var(--n4))">🎰</div><div style="font-weight:900;font-size:22px;margin-bottom:8px">LUCKY WHEEL</div><div style="font-size:12px;color:var(--mut);margin-bottom:14px">50+ rewards · Jackpot: 2000 🪙 + 10 💎</div>${canSpin?`<button class="btn warn full" onclick="Wheel.spin();UI.show('wheel')">🎰 SPIN!</button>`:`<button class="btn full" disabled>⏱ ${Math.floor(rem/60)}m ${rem%60}s</button>`}</div><div class="panel"><div style="font-weight:800;margin-bottom:8px">🎁 Possible Rewards</div>`;
+WHEEL_REWARDS.forEach(r=>{h+=`<div class="row" style="justify-content:space-between;font-size:12px"><span>${r.t}</span><span style="color:var(--mut)">${(r.w/105*100).toFixed(0)}%</span></div>`;});h+='</div>';s.innerHTML=h;},
+
 battlepass(s){const lvl=Math.floor(Store.d.battlePass.xp/100);
-let h=`<div class="panel"><div class="row" style="justify-content:space-between">
-<div><div style="font-weight:800">\uD83C\uDFAB Battle Pass S${Store.d.season}</div>
-<div style="font-size:11px;color:var(--mut)">Level ${lvl}/100 \u00B7 ${Store.d.battlePass.xp}/10000</div></div>
-<div>${Store.d.battlePass.premium?'<span class="vip">\u2605 PREMIUM</span>':`<button class="btn warn sm" onclick="UI.buyBP()">\uD83D\uDC8E Buy Premium</button>`}</div></div>
-<div class="bar" style="margin:8px 0"><div class="bp-fill" style="width:${(Store.d.battlePass.xp/10000*100)|0}%"></div></div></div>
-<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">`;
-BP.levels().forEach(d=>{const cf=Store.d.battlePass.claimed.includes(d.lvl+'-free');
-const cp=Store.d.battlePass.claimed.includes(d.lvl+'-premium');
-h+=`<div class="panel" style="padding:8px;margin:0;text-align:center"><div style="font-size:18px;font-weight:900;color:var(--n2)">${d.lvl}</div>
-<div style="font-size:10px;color:var(--mut)">${d.xp}xp</div>
-${d.free?`<button class="btn ok sm" style="margin-top:4px;width:100%" ${cf?'disabled':''} onclick="BP.claim(${d.lvl},'free')">${cf?'\u2705':'Free'}</button>`:''}
-${d.premium?`<button class="btn warn sm" style="margin-top:4px;width:100%" ${cp?'disabled':''} onclick="BP.claim(${d.lvl},'premium')">${cp?'\u2705':'Prem'}</button>`:''}</div>`;});
-h+='</div>';s.innerHTML=h;},
-buyBP(){if(Store.d.diamonds<49)return Toast.show('\u274C Need 49 \uD83D\uDC8E','err');
-Store.d.diamonds-=49;Store.d.battlePass.premium=true;Store.save();Toast.show('\uD83C\uDFAB Premium!','ok');UI.show('battlepass');},
-themes(s){let h='<div class="panel"><div style="font-weight:800">\uD83C\uDFA8 Themes</div></div><div class="grid">';
+const h=`<div class="panel"><div class="row" style="justify-content:space-between"><div><div style="font-weight:800">🎫 Battle Pass S${Store.d.season}</div><div style="font-size:11px;color:var(--mut)">Level ${lvl}/100 · ${Store.d.battlePass.xp}/10000 XP</div></div><div>${Store.d.battlePass.premium?'<span class="vip">★ PREMIUM</span>':`<button class="btn warn sm" onclick="UI.buyBP()">💎 Buy Premium (49💎)</button>`}</div></div><div class="bar" style="margin:8px 0"><div class="bp-fill" style="width:${(Store.d.battlePass.xp/10000*100)|0}%"></div></div></div>`;
+let g='<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">';
+const data=BP.levels();data.forEach(d=>{const claimedF=Store.d.battlePass.claimed.includes(d.lvl+'-free');const claimedP=Store.d.battlePass.claimed.includes(d.lvl+'-premium');
+g+=`<div class="panel" style="padding:8px;margin:0;text-align:center"><div style="font-size:18px;font-weight:900;color:var(--n2)">${d.lvl}</div><div style="font-size:10px;color:var(--mut)">${d.xp}xp</div>${d.free?`<button class="btn ok sm" style="margin-top:4px;width:100%" ${claimedF?'disabled':''} onclick="BP.claim(${d.lvl},'free')">${claimedF?'✅':'Free'}</button>`:''}${d.premium?`<button class="btn warn sm" style="margin-top:4px;width:100%" ${claimedP?'disabled':''} onclick="BP.claim(${d.lvl},'premium')">${claimedP?'✅':'Prem'}</button>`:''}</div>`;});
+g+='</div>';s.innerHTML=h+g;},
+
+buyBP(){if(Store.d.diamonds<49)return Toast.show('❌ Need 49 💎','err');Store.d.diamonds-=49;Store.d.battlePass.premium=true;Store.save();Toast.show('🎫 Premium unlocked!','ok');UI.show('battlepass');},
+
+themes(s){let h='<div class="panel"><div style="font-weight:800">🎨 Themes</div></div><div class="grid">';
 THEMES.forEach(t=>{const o=Store.d.ownedThemes.includes(t.id),eq=Store.d.currentTheme===t.id;
-h+=`<div class="tile" onclick="${o?"ThemeSys.apply('${t.id}');UI.show('themes')":"ThemeSys.buy('${t.id}')"}" style="background:linear-gradient(135deg,${t.colors[0]},${t.colors[1]},${t.colors[2]});color:${t.accent}">
-<span class="em" style="filter:drop-shadow(0 0 8px ${t.accent})">${t.ic}</span>
-<div class="nm">${t.nm}</div><div class="ds">${o?(eq?'\u2705 Active':'Tap'):'\uD83D\uDD12 '+fmt(t.cost)}</div></div>`;});
+h+=`<div class="tile" onclick="${o?`ThemeSys.apply('${t.id}');UI.show('themes')`:`ThemeSys.buy('${t.id}')`}" style="background:linear-gradient(135deg,${t.colors[0]},${t.colors[1]},${t.colors[2]});color:${t.accent}"><span class="em" style="filter:drop-shadow(0 0 8px ${t.accent})">${t.ic}</span><div class="nm">${t.nm}</div><div class="ds">${o?(eq?'✅ Active':'Tap to use'):'🔒 '+fmt(t.cost)+' 🪙'}</div></div>`;});
 h+='</div>';s.innerHTML=h;},
-stats(s){const s2=Store.d.stats;const max=Math.max(1,s2.highestScore);
-let ch='';const best=Object.entries(Store.d.bestScores).sort((a,b)=>b[1]-a[1]).slice(0,8);
-best.forEach(([k,v])=>{ch+=`<div class="row" style="justify-content:space-between;font-size:11px"><span>${k}</span>
-<div class="bar" style="width:60%"><div class="fill" style="width:${(v/max*100)|0}%"></div></div><span>${fmt(v)}</span></div>`;});
-s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCCA Overview</div>
-<div class="row" style="justify-content:space-between"><span>\uD83C\uDFAE Played</span><b>${fmt(s2.gamesPlayed)}</b></div>
-<div class="row" style="justify-content:space-between"><span>\u23F1 Time</span><b>${Math.floor(s2.playTime/60)}m</b></div>
-<div class="row" style="justify-content:space-between"><span>\uD83C\uDFC6 Win%</span><b>${s2.gamesPlayed?(s2.wins/s2.gamesPlayed*100).toFixed(1):0}%</b></div></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCC8 Top Scores</div>${ch||'<div style="color:var(--mut);font-size:12px">Play to see</div>'}</div>`;},
-settings(s){s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">\u2699\uFE0F Settings</div>
-<div class="row" style="justify-content:space-between"><span>\uD83D\uDD0A Sound</span>
-<input type="checkbox" ${Store.d.soundEnabled?'checked':''} onchange="Store.d.soundEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div>
-<div class="row" style="justify-content:space-between"><span>\uD83C\uDFB5 Music</span>
-<input type="checkbox" ${Store.d.musicEnabled?'checked':''} onchange="Store.d.musicEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div>
-<div class="row" style="justify-content:space-between"><span>\uD83C\uDFAC FPS</span>
-<input type="checkbox" ${Store.d.showFPS?'checked':''} onchange="Store.d.showFPS=this.checked;$('#fps').style.display=this.checked?'block':'none';Store.save();" style="width:20px;height:20px"></div>
-<div class="row" style="justify-content:space-between"><span>\uD83D\uDD0B Low Power</span>
-<input type="checkbox" ${Store.d.lowPower?'checked':''} onchange="Store.d.lowPower=this.checked;Store.save();" style="width:20px;height:20px"></div>
-<div class="row" style="justify-content:space-between"><span>\uD83D\uDEE0 Dev (3x)</span>
-<input type="checkbox" ${Store.d.devMode?'checked':''} onchange="Store.d.devMode=this.checked;Store.save();" style="width:20px;height:20px"></div>
-<div class="row">Volume: ${(Store.d.volume*100)|0}%</div>
-<input type="range" min="0" max="100" value="${(Store.d.volume*100)|0}" style="width:100%" oninput="Store.d.volume=this.value/100;Store.save()"></div>
-<div class="panel"><div style="font-weight:800;margin-bottom:8px">\uD83D\uDCBE Save</div>
-<div class="row"><button class="btn ok" onclick="Store.save();Toast.show('\uD83D\uDCBE Saved','ok')">\uD83D\uDCBE Save</button>
-<button class="btn" onclick="Store.export()">\uD83D\uDCE4 Export</button>
-<button class="btn" onclick="Store.import()">\uD83D\uDCE5 Import</button></div>
-<div class="row"><button class="btn warn" onclick="UI.promo()">\uD83C\uDF81 Promo</button>
-<button class="btn d" onclick="Store.reset()">\u26A0 Reset</button></div></div>`;},
-credits(s){s.innerHTML=`<div class="panel" style="text-align:center">
-<div style="font-size:60px;margin:10px 0;filter:drop-shadow(0 0 30px var(--neon))">\u26A1</div>
-<div style="font-size:28px;font-weight:900;background:linear-gradient(90deg,var(--n2),var(--neon));-webkit-background-clip:text;background-clip:text;color:transparent">BLOCKVERSE V3.0</div>
-<div style="color:var(--mut);font-size:12px;margin:8px 0">Cyberpunk Mini-Game Platform</div>
-<div style="font-size:11px;line-height:1.7;margin-top:14px;text-align:left">
-<b>\uD83C\uDFAE Games:</b> 7 playable<br>
-<b>\uD83D\uDCCA Trophies:</b> 50 achievements<br>
-<b>\uD83C\uDFA8 Themes:</b> 11 variants<br>
-<b>\uD83C\uDF81 Features:</b> Battle Pass, Wheel, Shop, Daily, Stats, Save/Load, Audio</div>
-<div style="margin-top:14px;color:var(--mut);font-size:10px">No frameworks \u00B7 No CDN \u00B7 No server \u00B7 100% Offline</div></div>`;},
+
+stats(s){const s2=Store.d.stats;const max=Math.max(1,s2.highestScore);let chart='';
+const best=Object.entries(Store.d.bestScores).sort((a,b)=>b[1]-a[1]).slice(0,8);
+best.forEach(([k,v])=>{chart+=`<div class="row" style="justify-content:space-between;font-size:11px"><span>${k}</span><div class="bar" style="width:60%"><div class="fill" style="width:${(v/max*100)|0}%"></div></div><span>${fmt(v)}</span></div>`;});
+s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">📊 Stats Overview</div><div class="row" style="justify-content:space-between"><span>🎮 Total Played</span><b>${fmt(s2.gamesPlayed)}</b></div><div class="row" style="justify-content:space-between"><span>⏱ Play Time</span><b>${Math.floor(s2.playTime/60)} min</b></div><div class="row" style="justify-content:space-between"><span>🏆 Win Rate</span><b>${s2.gamesPlayed?(s2.wins/s2.gamesPlayed*100).toFixed(1):0}%</b></div></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">📈 Top Scores</div>${chart||'<div style="color:var(--mut);font-size:12px">Play games to see scores</div>'}</div>`;},
+
+settings(s){s.innerHTML=`<div class="panel"><div style="font-weight:800;margin-bottom:8px">⚙️ Settings</div><div class="row" style="justify-content:space-between"><span>🔊 Sound</span><input type="checkbox" ${Store.d.soundEnabled?'checked':''} onchange="Store.d.soundEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🎵 Music</span><input type="checkbox" ${Store.d.musicEnabled?'checked':''} onchange="Store.d.musicEnabled=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🎬 FPS Counter</span><input type="checkbox" ${Store.d.showFPS?'checked':''} onchange="Store.d.showFPS=this.checked;$('#fps').style.display=this.checked?'block':'none';Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🔋 Low Power Mode</span><input type="checkbox" ${Store.d.lowPower?'checked':''} onchange="Store.d.lowPower=this.checked;Store.save();" style="width:20px;height:20px"></div><div class="row" style="justify-content:space-between"><span>🛠 Dev Mode (3x rewards)</span><input type="checkbox" ${Store.d.devMode?'checked':''} onchange="Store.d.devMode=this.checked;Store.save();Toast.show(this.checked?'🛠 Dev ON':'Dev OFF');" style="width:20px;height:20px"></div><div class="row" style="font-size:12px">Volume: ${(Store.d.volume*100)|0}%</div><input type="range" min="0" max="100" value="${(Store.d.volume*100)|0}" style="width:100%" oninput="Store.d.volume=this.value/100;Store.save();Audio.beep(440,0.05);"></div><div class="panel"><div style="font-weight:800;margin-bottom:8px">💾 Save / Load</div><div class="row"><button class="btn ok" onclick="Store.save();Toast.show('💾 Saved','ok')">💾 Save Now</button><button class="btn" onclick="Store.export()">📤 Export JSON</button><button class="btn" onclick="Store.import()">📥 Import JSON</button></div><div class="row"><button class="btn warn" onclick="UI.promo()">🎁 Promo Code</button><button class="btn d" onclick="Store.reset()">⚠️ Reset All Data</button></div></div><div class="panel" style="font-size:11px;color:var(--mut)">Account created: ${new Date(Store.d.createdAt).toLocaleDateString()}<br>Storage used: ${(JSON.stringify(Store.d).length/1024).toFixed(1)} KB</div>`;},
+
+credits(s){s.innerHTML=`<div class="panel" style="text-align:center"><div style="font-size:60px;margin:10px 0;filter:drop-shadow(0 0 30px var(--neon))">⚡</div><div style="font-size:28px;font-weight:900;background:linear-gradient(90deg,var(--n2),var(--neon));-webkit-background-clip:text;background-clip:text;color:transparent">BLOCKVERSE V3.0 ULTIMATE</div><div style="color:var(--mut);font-size:12px;margin:8px 0">Cyberpunk Mini-Game Platform</div><div style="font-size:11px;line-height:1.7;margin-top:14px;text-align:left"><b>🎮 Games:</b> 7 playable + more coming<br><b>📊 Trophies:</b> 50 achievements<br><b>🎨 Themes:</b> 11 cyberpunk variants<br><b>🎁 Features:</b> Battle Pass, Lucky Wheel, Shop, Daily Quests, Statistics, Save/Load, Audio<br><b>💻 Stack:</b> Vanilla JS · HTML5 Canvas · LocalStorage · Web Audio API<br><b>📱 Devices:</b> Mobile + Desktop · Touch + Keyboard</div><div style="margin-top:14px;color:var(--mut);font-size:10px">No frameworks · No CDN · No server · 100% Offline<br>Made with ❤️ by Blockverse Team · 2026</div></div>`;},
+
 promo(){const c=prompt('Enter promo code:');if(!c)return;const u=c.toUpperCase();
-const codes={'WELCOME':{c:500,d:5},'BLOCKVERSE':{c:1000,d:10},'NEON2026':{c:750,d:5},'CYBER':{c:2000,d:25}};
-if(Store.d.promoUsed.includes(u))return Toast.show('\u274C Used','err');
-const r=codes[u];if(!r)return Toast.show('\u274C Invalid','err');
-Store.d.coins+=r.c;Store.d.diamonds+=r.d;Store.d.promoUsed.push(u);Store.save();UI.updateTop();
-Toast.show('\uD83C\uDF81 +'+r.c+' \uD83E\uDE99 +'+r.d+' \uD83D\uDC8E','ok');Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,30);},
-toastUnlocked(a){Modal.show(`<div style="text-align:center"><div style="font-size:70px;margin:15px 0;filter:drop-shadow(0 0 20px var(--ok))">\uD83C\uDFC6</div>
-<div style="font-size:12px;color:var(--mut)">UNLOCKED</div>
-<div style="font-size:24px;font-weight:900;color:var(--ok);margin:8px 0">${a.ic} ${a.ti}</div>
-<div style="font-size:13px;margin:6px 0">${a.de}</div>
-<div style="font-size:14px;color:var(--ok);font-weight:700;margin-top:10px">${a.rw}</div>
-<button class="btn ok full" style="margin-top:14px" onclick="Modal.hide()">\uD83C\uDF89 Awesome!</button></div>`);}
+const codes={'WELCOME':{c:500,d:5,m:'Welcome!'},'BLOCKVERSE':{c:1000,d:10,m:'Founder!'},'NEON2026':{c:750,d:5,m:'Neon 2026!'},'CYBER':{c:2000,d:25,m:'Cyber!'}};
+if(Store.d.promoUsed.includes(u))return Toast.show('❌ Already used','err');
+const r=codes[u];if(!r)return Toast.show('❌ Invalid','err');
+Store.d.coins+=r.c;Store.d.diamonds+=r.d;Store.d.promoUsed.push(u);Store.save();UI.updateTop();Toast.show('🎁 '+r.m+' +'+r.c+' 🪙 +'+r.d+' 💎','ok');Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,30);},
+
+toastUnlocked(a){Modal.show(`<div style="text-align:center"><div style="font-size:70px;margin:15px 0;filter:drop-shadow(0 0 20px var(--ok))">🏆</div><div style="font-size:12px;color:var(--mut)">ACHIEVEMENT UNLOCKED</div><div style="font-size:24px;font-weight:900;color:var(--ok);margin:8px 0">${a.ic} ${a.ti}</div><div style="font-size:13px;color:var(--txt);margin:6px 0">${a.de}</div><div style="font-size:14px;color:var(--ok);font-weight:700;margin-top:10px">${a.rw}</div><button class="btn ok full" style="margin-top:14px" onclick="Modal.hide()">Awesome! 🎉</button></div>`);}
 };
 
 /* === SECRET === */
-const Secret={
-codes:['KONAMI','NEON','CYBER','BLOCKVERSE','GLITCH','HIDDEN','EASTER','MATRIX','DARK','IMMORTAL'],
-check(){const c=prompt('\uD83D\uDD12 Secret code:');if(!c)return;const u=c.toUpperCase().trim();
+const Secret={codes:['KONAMI','NEON','CYBER','BLOCKVERSE','GLITCH','HIDDEN','EASTER','MATRIX','DARK','IMMORTAL'],
+check(){const c=prompt('🔒 Enter secret code:');if(!c)return;const u=c.toUpperCase().trim();
 if(this.codes.includes(u)&&!Store.d.secretCodes.includes(u)){
-Store.d.secretCodes.push(u);const r={KONAMI:{c:1000,d:10},NEON:{c:500,d:5},CYBER:{c:800,d:8},
-BLOCKVERSE:{c:2000,d:25},GLITCH:{c:300,d:3},HIDDEN:{c:1500,d:15},EASTER:{c:1000,d:10},
-MATRIX:{c:500,d:5},DARK:{c:2000,d:20},IMMORTAL:{c:10000,d:100,vip:true}}[u];
-Store.d.coins+=r.c;Store.d.diamonds+=r.d;if(r.vip){Store.d.vip=true;Store.d.vipUntil=Date.now()+7*86400000;}
-Store.save();UI.updateTop();Toast.show('\uD83C\uDF89 +'+r.c+' \uD83E\uDE99 +'+r.d+' \uD83D\uDC8E'+(r.vip?' + VIP':''),'ok');
+Store.d.secretCodes.push(u);
+const rewards={KONAMI:{c:1000,d:10},NEON:{c:500,d:5},CYBER:{c:800,d:8},BLOCKVERSE:{c:2000,d:25},
+GLITCH:{c:300,d:3},HIDDEN:{c:1500,d:15},EASTER:{c:1000,d:10},MATRIX:{c:500,d:5},DARK:{c:2000,d:20},IMMORTAL:{c:10000,d:100,vip:true}};
+const r=rewards[u];
+Store.d.coins+=r.c;Store.d.diamonds+=r.d;
+if(r.vip){Store.d.vip=true;Store.d.vipUntil=Date.now()+7*86400000;}
+Store.save();UI.updateTop();Toast.show('🎉 Secret! +'+r.c+' 🪙 +'+r.d+' 💎'+(r.vip?' + VIP!':''),'ok');
 Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,50);AchSys.check();
-}else if(Store.d.secretCodes.includes(u))Toast.show('\u274C Used','err');
-else Toast.show('\u274C Wrong','err');}
-};
+}else if(Store.d.secretCodes.includes(u))Toast.show('❌ Already used','err');
+else Toast.show('❌ Wrong code','err');}};
 
-/* === GAMES - Snake + 2048 + Memory + TicTacToe === */
+/* === GAMES (part 4: Snake, 2048, Memory, TicTacToe) === */
 const Games={
-canvas:null,ctx:null,running:false,startTime:0,
-setup(w,h){const c=document.createElement('canvas');c.className='g';c.width=w;c.height=h;
-this.canvas=c;this.ctx=c.getContext('2d');return c;},
-end(score,game){this.running=false;Player.addScore(game,score);
-Player.addXP(Math.floor(score/10)+10);Player.addCoins(Math.floor(score/5)+5);
+canvas:null,ctx:null,running:false,raf:null,startTime:0,
+setup(w,h){const c=document.createElement('canvas');c.className='g';c.width=w;c.height=h;this.canvas=c;this.ctx=c.getContext('2d');return c;},
+end(score,game){this.running=false;
+if(this.raf)cancelAnimationFrame(this.raf);
+Player.addScore(game,score);Player.addXP(Math.floor(score/10)+10);Player.addCoins(Math.floor(score/5)+5);
 Store.d.stats.playTime+=Math.floor((Date.now()-this.startTime)/1000);Store.save();AchSys.check();
-Modal.show(`<div style="text-align:center"><div style="font-size:60px;margin:10px 0">\uD83C\uDFAE</div>
-<div style="font-size:24px;font-weight:900;color:var(--ok)">Game Over!</div>
-<div style="font-size:40px;font-weight:900;margin:10px 0;color:var(--n2);text-shadow:0 0 15px currentColor">${fmt(score)}</div>
-<div style="font-size:13px;color:var(--mut)">Best: ${fmt(Store.d.bestScores[game]||0)} (${game})</div>
-<button class="btn ok full" style="margin-top:14px" onclick="Modal.hide();UI.show('${game}')">\uD83D\uDD04 Again</button>
-<button class="btn full" style="margin-top:6px" onclick="Modal.hide();UI.show('home')">\uD83C\uDFE0 Home</button></div>`);},
-_gameUI(nm,em,ctrl){return `<div class="hud"><div class="h"><div class="v">${em}</div><div class="l">${nm}</div></div>
-<div class="h"><div class="v sc">0</div><div class="l">Score</div></div>
-<div class="h"><div class="v">${Store.d.energy}\u26A1</div><div class="l">Energy</div></div></div>
-<div class="panel" style="padding:8px;text-align:center;font-size:11px;color:var(--mut)">${ctrl} \u00B7 Best: ${fmt(Store.d.bestScores[nm.toLowerCase().replace(' ','')]||0)}</div>
-<div class="gwrap"></div>
-<button class="btn d full" onclick="Modal.hide();UI.show('home')">\u23F9 Quit</button>`;},
-snake(s){s.innerHTML=this._gameUI('Snake','\uD83D\uDC0D','WASD / Arrows / Swipe');
-const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
-const ctx=this.ctx,W=c.width,H=c.height,C=19,S=20;
-let snake=[{x:9,y:9}],dir={x:1,y:0},nd=dir,food={x:5,y:5},score=0,dead=false;
+Modal.show(`<div style="text-align:center"><div style="font-size:60px;margin:10px 0">🎮</div><div style="font-size:24px;font-weight:900;color:var(--ok)">Game Over!</div><div style="font-size:40px;font-weight:900;margin:10px 0;color:var(--n2);text-shadow:0 0 15px currentColor">${fmt(score)}</div><div style="font-size:13px;color:var(--mut)">Best: ${fmt(Store.d.bestScores[game]||0)} (${game})</div><button class="btn ok full" style="margin-top:14px" onclick="Modal.hide();UI.show('${game}')">🔁 Play Again</button><button class="btn full" style="margin-top:6px" onclick="Modal.hide();UI.show('home')">🏠 Home</button></div>`);},
+
+_gameUI(nm,em,ctrl){return `<div class="hud"><div class="h"><div class="v">${em}</div><div class="l">${nm}</div></div><div class="h"><div class="v sc">0</div><div class="l">Score</div></div><div class="h"><div class="v">${Store.d.energy}⚡</div><div class="l">Energy</div></div></div><div class="panel" style="padding:8px;text-align:center;font-size:11px;color:var(--mut)">${ctrl} · Best: ${fmt(Store.d.bestScores[nm.toLowerCase().replace(' ','')]||0)}</div><div class="gwrap"></div><button class="btn d full" onclick="Modal.hide();UI.show('home')">⏹ Quit Game</button>`;},
+
+snake(s){s.innerHTML=this._gameUI('Snake','🐍','WASD / Arrows / Swipe');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+const ctx=this.ctx,W=c.width,H=c.height,C=19,S=20;let snake=[{x:9,y:9}],dir={x:1,y:0},nd=dir,food={x:5,y:5},score=0,dead=false,paused=false;
 const place=()=>{let f;do{f={x:ri(0,C-1),y:ri(0,C-1)};}while(snake.some(p=>p.x===f.x&&p.y===f.y));food=f;};
-const draw=()=>{ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
-ctx.strokeStyle='rgba(180,0,255,.1)';for(let i=0;i<=C;i++){ctx.beginPath();ctx.moveTo(i*S,0);ctx.lineTo(i*S,H);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*S);ctx.lineTo(W,i*S);ctx.stroke();}
-ctx.fillStyle='#ff007a';ctx.shadowBlur=15;ctx.shadowColor='#ff007a';
-ctx.fillRect(food.x*S+2,food.y*S+2,S-4,S-4);ctx.shadowBlur=0;
-snake.forEach((p,i)=>{const h=i===0;ctx.fillStyle=h?'#00ff88':'#00cc66';
-if(h){ctx.shadowBlur=15;ctx.shadowColor='#00ff88';}else ctx.shadowBlur=0;
-ctx.fillRect(p.x*S+1,p.y*S+1,S-2,S-2);});};
-const upd=()=>{if(dead)return;const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+const draw=()=>{ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(180,0,255,.1)';for(let i=0;i<=C;i++){ctx.beginPath();ctx.moveTo(i*S,0);ctx.lineTo(i*S,H);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*S);ctx.lineTo(W,i*S);ctx.stroke();}
+ctx.fillStyle='#ff007a';ctx.shadowBlur=15;ctx.shadowColor='#ff007a';ctx.fillRect(food.x*S+2,food.y*S+2,S-4,S-4);ctx.shadowBlur=0;
+snake.forEach((p,i)=>{const h=i===0;ctx.fillStyle=h?'#00ff88':'#00cc66';if(h){ctx.shadowBlur=15;ctx.shadowColor='#00ff88';}else ctx.shadowBlur=0;ctx.fillRect(p.x*S+1,p.y*S+1,S-2,S-2);});};
+const upd=()=>{if(paused||dead)return;const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
 if(h.x<0||h.y<0||h.x>=C||h.y>=C||snake.some(p=>p.x===h.x&&p.y===h.y)){dead=true;Audio.fail();setTimeout(()=>Games.end(score,'snake'),300);return;}
-snake.unshift(h);if(h.x===food.x&&h.y===food.y){score+=10;Store.d.stats.combos++;Audio.coin();place();}
-else snake.pop();s.querySelector('.sc').textContent=fmt(score);draw();};
-const keys=(e)=>{const k=e.key.toLowerCase();
-if((k==='arrowup'||k==='w')&&dir.y!==1)nd={x:0,y:-1};
-if((k==='arrowdown'||k==='s')&&dir.y!==-1)nd={x:0,y:1};
-if((k==='arrowleft'||k==='a')&&dir.x!==1)nd={x:-1,y:0};
-if((k==='arrowright'||k==='d')&&dir.x!==-1)nd={x:1,y:0};};
-document.addEventListener('keydown',keys);
-let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+snake.unshift(h);if(h.x===food.x&&h.y===food.y){score+=10;Store.d.stats.combos++;Audio.coin();place();}else snake.pop();
+s.querySelector('.sc').textContent=fmt(score);draw();};
+const keys=(e)=>{const k=e.key.toLowerCase();if((k==='arrowup'||k==='w')&&dir.y!==1)nd={x:0,y:-1};
+if((k==='arrowdown'||k==='s')&&dir.y!==-1)nd={x:0,y:1};if((k==='arrowleft'||k==='a')&&dir.x!==1)nd={x:-1,y:0};
+if((k==='arrowright'||k==='d')&&dir.x!==-1)nd={x:1,y:0};if(k===' '){paused=!paused;e.preventDefault();}};
+document.addEventListener('keydown',keys);let tx=0,ty=0;
+c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
 c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
 if(Math.abs(dx)>Math.abs(dy)){if(dx>10&&dir.x!==-1)nd={x:1,y:0};else if(dx<-10&&dir.x!==1)nd={x:-1,y:0};}
-else{if(dy>10&&dir.y!==-1)nd={x:0,y:1};else if(dy<-10&&dir.y!==1)nd={x:0,y:-1};}};
-const loop=setInterval(()=>{dir=nd;upd();},120);
-this.startTime=Date.now();this.running=true;
-UI.gameCleanup=()=>{clearInterval(loop);document.removeEventListener('keydown',keys);};
-},
-puzzle(s){s.innerHTML=this._gameUI('2048','\uD83E\uDDE9','Arrows / WASD');
-const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+else{if(dy>10&&dir.y!==-1)nd={x:0,y:1};else if(dy<-10&&dir.y!==1)nd={x:0,y:-1;}}};
+const loop=setInterval(()=>{dir=nd;upd();},120);this.startTime=Date.now();this.running=true;
+UI.gameCleanup=()=>{clearInterval(loop);document.removeEventListener('keydown',keys);};},
+
+puzzle(s){s.innerHTML=this._gameUI('2048','🧩','Arrows / WASD');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
 const ctx=this.ctx,N=4,S=85,G=10,W=N*S+(N+1)*G;c.width=W;c.height=W;
-let board=Array(N).fill().map(()=>Array(N).fill(0));
-const add=()=>{const e=[];for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])e.push([i,j]);
-if(!e.length)return;const [i,j]=pick(e);board[i][j]=Math.random()<.9?2:4;};
-const colors={0:'#1a0a30',2:'#00f0ff',4:'#00ccff',8:'#00aaff',16:'#0088ff',32:'#ff00ff',64:'#ff44ff',128:'#ff88ff',256:'#ff007a',512:'#ff4400',1024:'#ffd700',2048:'#ffe600'};
+let board=Array(N).fill().map(()=>Array(N).fill(0));const colors={0:'#1a0a30',2:'#00f0ff',4:'#00ccff',8:'#00aaff',16:'#0088ff',32:'#ff00ff',64:'#ff44ff',128:'#ff88ff',256:'#ff007a',512:'#ff4400',1024:'#ffd700',2048:'#ffe600',4096:'#ff4400'};
 const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,c.width,c.height);
 for(let i=0;i<N;i++)for(let j=0;j<N;j++){const v=board[i][j],x=G+j*(S+G),y=G+i*(S+G);
-ctx.fillStyle=colors[v]||'#ff0044';
-if(v){ctx.shadowBlur=10;ctx.shadowColor=colors[v];}else ctx.shadowBlur=0;
-ctx.fillRect(x,y,S,S);
-if(v){ctx.fillStyle='#fff';ctx.font='bold '+(v<100?32:v<1000?26:20)+'px Arial';
-ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v,x+S/2,y+S/2);}}ctx.shadowBlur=0;};
+ctx.fillStyle=colors[v]||'#ff0044';if(v){ctx.shadowBlur=10;ctx.shadowColor=colors[v];}else ctx.shadowBlur=0;
+ctx.fillRect(x,y,S,S);if(v){ctx.fillStyle='#fff';ctx.font='bold '+(v<100?32:v<1000?26:20)+'px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v,x+S/2,y+S/2);}}ctx.shadowBlur=0;};
+const add=()=>{const e=[];for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])e.push([i,j]);if(!e.length)return;const[i,j]=pick(e);board[i][j]=Math.random()<.9?2:4;};
 const slide=row=>{let r=row.filter(x=>x);for(let i=0;i<r.length-1;i++)if(r[i]===r[i+1]){r[i]*=2;r[i+1]=0;score+=r[i];}
 r=r.filter(x=>x);while(r.length<N)r.push(0);return r;};
 const move=(d)=>{let moved=false;
 if(d==='L')for(let i=0;i<N;i++){const o=[...board[i]];board[i]=slide(board[i]);if(o.join()!==board[i].join())moved=true;}
 else if(d==='R')for(let i=0;i<N;i++){const o=[...board[i]];board[i]=slide([...board[i]].reverse()).reverse();if(o.join()!==board[i].join())moved=true;}
-else if(d==='U')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];
-const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]]);for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
-else if(d==='D')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];
-const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]].reverse()).reverse();
-for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
+else if(d==='U')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]]);for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
+else if(d==='D')for(let j=0;j<N;j++){const o=[board[0][j],board[1][j],board[2][j],board[3][j]];const r=slide([board[0][j],board[1][j],board[2][j],board[3][j]].reverse()).reverse();for(let i=0;i<N;i++)board[i][j]=r[i];if(o.join()!==r.join())moved=true;}
 return moved;};
-const canMove=()=>{for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])return true;
-for(let i=0;i<N;i++)for(let j=0;j<N-1;j++)if(board[i][j]===board[i][j+1])return true;
-for(let i=0;i<N-1;i++)for(let j=0;j<N;j++)if(board[i][j]===board[i+1][j])return true;return false;};
-let score=0;
-const upd=(d)=>{if(move(d)){add();Audio.click();s.querySelector('.sc').textContent=fmt(score);draw();
-if(!canMove())setTimeout(()=>Games.end(score,'2048'),300);}};
-const keys=(e)=>{const k=e.key.toLowerCase();let d=null;
-if(k==='arrowleft'||k==='a')d='L';if(k==='arrowright'||k==='d')d='R';
-if(k==='arrowup'||k==='w')d='U';if(k==='arrowdown'||k==='s')d='D';
-if(d){upd(d);e.preventDefault();}};
-document.addEventListener('keydown',keys);
-let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
-c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
-if(Math.abs(dx)>Math.abs(dy))upd(dx>0?'R':'L');else upd(dy>0?'D':'U');};
-add();add();draw();this.startTime=Date.now();this.running=true;
-UI.gameCleanup=()=>document.removeEventListener('keydown',keys);
-},
-memory(s){s.innerHTML=this._gameUI('Memory','\uD83E\uDDE0','Click cards');
-const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
+const canMove=()=>{for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!board[i][j])return true;for(let i=0;i<N;i++)for(let j=0;j<N-1;j++)if(board[i][j]===board[i][j+1])return true;for(let i=0;i<N-1;i++)for(let j=0;j<N;j++)if(board[i][j]===board[i+1][j])return true;return false;};
+let score=0;const upd=(d)=>{if(move(d)){add();Audio.click();s.querySelector('.sc').textContent=fmt(score);draw();if(!canMove())setTimeout(()=>Games.end(score,'2048'),300);}};
+const keys=(e)=>{const k=e.key.toLowerCase();let d=null;if(k==='arrowleft'||k==='a')d='L';if(k==='arrowright'||k==='d')d='R';if(k==='arrowup'||k==='w')d='U';if(k==='arrowdown'||k==='s')d='D';if(d){upd(d);e.preventDefault();}};
+document.addEventListener('keydown',keys);let tx=0,ty=0;
+c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
+c.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.abs(dx)>Math.abs(dy))upd(dx>0?'R':'L');else upd(dy>0?'D':'U');};
+add();add();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>document.removeEventListener('keydown',keys);},
+
+memory(s){s.innerHTML=this._gameUI('Memory','🧠','Click cards');const c=this.setup(380,380);s.querySelector('.gwrap').appendChild(c);
 const ctx=this.ctx,N=4,S=85,G=10,W=N*S+(N+1)*G;c.width=W;c.height=W;
-const syms=['\uD83C\uDFAE','\uD83C\uDFAF','\uD83D\uDE80','\uD83D\uDC8E','\u26A1','\uD83C\uDF1F','\uD83C\uDFA8','\uD83D\uDD25'];
-let cards=[];
-const init=()=>{const a=[...syms,...syms].sort(()=>Math.random()-.5);
-cards=a.map((s,i)=>({s,i,revealed:false,matched:false,x:i%N,y:Math.floor(i/N)}));};
-const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);
-cards.forEach(card=>{const x=G+card.x*(S+G),y=G+card.y*(S+G);
+const symbols=['🎮','🎯','🚀','💎','⚡','🌟','🎨','🔥'];let cards=[];
+const init=()=>{const syms=[...symbols,...symbols].sort(()=>Math.random()-.5);cards=syms.map((s,i)=>({s,i,revealed:false,matched:false,x:i%N,y:Math.floor(i/N)}));};
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);cards.forEach(card=>{const x=G+card.x*(S+G),y=G+card.y*(S+G);
 ctx.fillStyle=card.matched?'rgba(0,255,136,.3)':card.revealed?'rgba(180,0,255,.3)':'rgba(180,0,255,.6)';
-ctx.strokeStyle=card.matched?'#00ff88':card.revealed?'#ff007a':'#b400ff';ctx.lineWidth=2;
-ctx.shadowBlur=10;ctx.shadowColor=ctx.strokeStyle;
+ctx.strokeStyle=card.matched?'#00ff88':card.revealed?'#ff007a':'#b400ff';ctx.lineWidth=2;ctx.shadowBlur=10;ctx.shadowColor=ctx.strokeStyle;
 ctx.fillRect(x,y,S,S);ctx.strokeRect(x,y,S,S);ctx.shadowBlur=0;
-if(card.revealed||card.matched){ctx.font='40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-ctx.fillText(card.s,x+S/2,y+S/2);}});};
-let first=null,locked=false,score=0;
-const click=(mx,my)=>{if(locked)return;
-const cx=Math.floor((mx-G)/(S+G)),cy=Math.floor((my-G)/(S+G));
-if(cx<0||cy<0||cx>=N||cy>=N)return;
-const card=cards.find(c=>c.x===cx&&c.y===cy);
-if(!card||card.revealed||card.matched)return;
-card.revealed=true;draw();Audio.click();
-if(!first){first=card;}
-else{if(first.s===card.s){card.matched=true;first.matched=true;score+=100;
-Store.d.stats.combos++;Audio.success();first=null;
+if(card.revealed||card.matched){ctx.font='40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(card.s,x+S/2,y+S/2);}});};
+let first=null,locked=false,score=0,moves=0;
+const click=(mx,my)=>{if(locked)return;const cx=Math.floor((mx-G)/(S+G)),cy=Math.floor((my-G)/(S+G));
+if(cx<0||cy<0||cx>=N||cy>=N)return;const card=cards.find(c=>c.x===cx&&c.y===cy);
+if(!card||card.revealed||card.matched)return;card.revealed=true;draw();Audio.click();
+if(!first){first=card;}else{moves++;if(first.s===card.s){card.matched=true;first.matched=true;score+=100;Store.d.stats.combos++;Audio.success();first=null;
 if(cards.every(c=>c.matched))setTimeout(()=>Games.end(score,'memory'),500);
 }else{locked=true;setTimeout(()=>{card.revealed=false;first.revealed=false;first=null;locked=false;draw();},800);}
 s.querySelector('.sc').textContent=fmt(score);}};
 c.onclick=e=>{const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height));};
 let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
 c.ontouchend=e=>{const r=c.getBoundingClientRect();click((tx-r.left)*(c.width/r.width),(ty-r.top)*(c.height/r.height));};
-init();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};
-},
-ttt(s){s.innerHTML=this._gameUI('TicTacToe','\u26AB','Tap vs AI');
-const c=this.setup(300,300);s.querySelector('.gwrap').appendChild(c);
+init();draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};},
+
+ttt(s){s.innerHTML=this._gameUI('Tic Tac Toe','⭕','Tap cells · vs AI');const c=this.setup(300,300);s.querySelector('.gwrap').appendChild(c);
 const ctx=this.ctx,N=3,S=95,G=5,W=N*S+(N+1)*G;c.width=W;c.height=W;
 let board=Array(9).fill(null),score=0,turn='X',over=false;
 const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
@@ -348,30 +212,20 @@ const win=()=>{for(const l of lines){const[a,b,c]=l.map(i=>board[i]);if(a&&a===b
 const aiMove=()=>{for(let i=0;i<9;i++)if(!board[i]){board[i]='O';if(win()==='O')return i;board[i]=null;}
 for(let i=0;i<9;i++)if(!board[i]){board[i]='X';if(win()==='X'){board[i]=null;return i;}board[i]=null;}
 for(let i of[4,0,2,6,8,1,3,5,7])if(!board[i])return i;return -1;};
-const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);
-ctx.strokeStyle='rgba(180,0,255,.4)';ctx.lineWidth=3;
+const draw=()=>{ctx.fillStyle='#050018';ctx.fillRect(0,0,W,W);ctx.strokeStyle='rgba(180,0,255,.4)';ctx.lineWidth=3;
 for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(G+i*(S+G)-G/2,0);ctx.lineTo(G+i*(S+G)-G/2,W);ctx.stroke();
 ctx.beginPath();ctx.moveTo(0,G+i*(S+G)-G/2);ctx.lineTo(W,G+i*(S+G)-G/2);ctx.stroke();}
 board.forEach((v,i)=>{if(!v)return;const cx=G+(i%N)*(S+G)+S/2,cy=G+Math.floor(i/N)*(S+G)+S/2;
-ctx.font='bold 60px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-ctx.shadowBlur=15;ctx.shadowColor=v==='X'?'#00f0ff':'#ff007a';
+ctx.font='bold 60px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=15;ctx.shadowColor=v==='X'?'#00f0ff':'#ff007a';
 ctx.fillStyle=v==='X'?'#00f0ff':'#ff007a';ctx.fillText(v,cx,cy);ctx.shadowBlur=0;});};
-const click=(mx,my)=>{if(over||turn!=='X')return;
-const cx=Math.floor(mx/(S+G)),cy=Math.floor(my/(S+G));
-if(cx<0||cy<0||cx>=N||cy>=N)return;
-const i=cy*N+cx;if(board[i])return;
-board[i]='X';Audio.click();draw();const w=win();
-if(w){over=true;score=w==='X'?100:0;Store.d.stats.wins+=w==='X'?1:0;
-setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
-turn='O';
-setTimeout(()=>{const m=aiMove();if(m>=0){board[m]='O';Audio.click();draw();
-const w2=win();if(w2){over=true;score=w2==='X'?100:0;Store.d.stats.wins+=w2==='X'?1:0;
-setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
-if(!board.includes(null)){over=true;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
-turn='X';}},400);};
+const click=(mx,my)=>{if(over||turn!=='X')return;const cx=Math.floor(mx/(S+G)),cy=Math.floor(my/(S+G));
+if(cx<0||cy<0||cx>=N||cy>=N)return;const i=cy*N+cx;if(board[i])return;
+board[i]='X';Audio.click();draw();const w=win();if(w){over=true;score=w==='X'?100:0;Store.d.stats.wins+=w==='X'?1:0;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
+turn='O';setTimeout(()=>{const m=aiMove();if(m>=0){board[m]='O';Audio.click();draw();const w2=win();if(w2){over=true;score=w2==='X'?100:0;Store.d.stats.wins+=w2==='X'?1:0;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}
+if(!board.includes(null)){over=true;setTimeout(()=>Games.end(score,'tictactoe'),500);return;}turn='X';}},400);};
 c.onclick=e=>{const r=c.getBoundingClientRect();click((e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height));};
 let tx=0,ty=0;c.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;};
 c.ontouchend=e=>{const r=c.getBoundingClientRect();click((tx-r.left)*(c.width/r.width),(ty-r.top)*(c.height/r.height));};
-draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};
-}
+draw();this.startTime=Date.now();this.running=true;UI.gameCleanup=()=>{};}
 };
+</script>
