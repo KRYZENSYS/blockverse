@@ -1,0 +1,130 @@
+/* === UTIL === */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const ri=(a,b)=>Math.floor(rand(a,b+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+const fmt=n=>(n||0).toLocaleString('en-US');
+const uid=()=>Math.random().toString(36).slice(2,10);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* === STORE === */
+const Store={
+key:'blockverse_v3',d:null,
+def(){return{version:3,username:'Player_'+uid().slice(0,4).toUpperCase(),avatar:'\uD83E\uDD16',title:'Newbie',clan:'',
+coins:500,diamonds:10,xp:0,level:1,rank:'Bronze',vip:false,vipUntil:0,
+energy:100,energyMax:100,energyRegen:60,streak:0,lastLogin:0,lastBonus:0,lastSpin:0,
+currentTheme:'cyberpunk',ownedThemes:['cyberpunk'],
+ownedAvatars:['\uD83E\uDD16','\uD83D\uDE0E','\uD83E\uDD8A','\uD83D\uDC31','\uD83D\uDC32','\uD83D\uDC7E','\uD83E\uDD84','\uD83D\uDC3C','\uD83D\uDC28','\uD83D\uDC2F'],
+ownedFrames:['none'],ownedCursors:['default'],ownedPets:[],ownedTitles:['Newbie'],
+ownedEffects:[],ownedMusic:['silence'],ownedBackgrounds:['default'],
+equippedFrame:'none',equippedCursor:'default',equippedPet:null,equippedMusic:'silence',
+stats:{gamesPlayed:0,wins:0,losses:0,highestScore:0,totalScore:0,accuracy:0,
+playTime:0,combos:0,longestStreak:0,totalCoins:0,totalDiamonds:0,xpEarned:0,perGame:{}},
+achievements:{},secretCodes:[],battlePass:{xp:0,claimed:[],premium:false},
+season:1,dailyQuests:[],lastQuestGen:0,bestScores:{},news:{read:[]},
+unlockedGames:['snake','2048','memory','tictactoe','minesweeper'],
+hiddenGamesUnlocked:false,energyTime:Date.now(),promoUsed:[],
+createdAt:Date.now(),soundEnabled:true,musicEnabled:true,volume:0.5,
+devMode:false,showFPS:false,lowPower:false,lastBackup:0};},
+load(){try{const r=localStorage.getItem(this.key);this.d=r?{...this.def(),...JSON.parse(r)}:this.def();}catch(e){this.d=this.def();}return this.d;},
+save(){try{localStorage.setItem(this.key,JSON.stringify(this.d));}catch(e){Toast.show('\u274C Save failed');}},
+reset(){if(!confirm('Reset all data?'))return;localStorage.removeItem(this.key);this.d=this.def();this.save();location.reload();},
+export(){const b=new Blob([JSON.stringify(this.d,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='blockverse_'+Date.now()+'.json';a.click();Toast.show('\uD83D\uDCBE Exported!');},
+import(){const i=document.createElement('input');i.type='file';i.accept='application/json';i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{this.d={...this.def(),...JSON.parse(ev.target.result)};this.save();Toast.show('\u2705 Imported!','ok');UI.show('home');}catch(err){Toast.show('\u274C Invalid file','err');}};r.readAsText(f);};i.click();}
+};
+
+/* === AUDIO === */
+const Audio={
+ctx:null,init(){try{this.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}},
+beep(freq,dur,vol,type){if(!Store.d.soundEnabled)return;freq=freq||440;dur=dur||0.1;vol=vol||0.2;type=type||'sine';
+try{if(!this.ctx)this.init();if(!this.ctx)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+o.type=type;o.frequency.value=freq;g.gain.value=vol*Store.d.volume;
+o.connect(g);g.connect(this.ctx.destination);o.start();
+g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+dur);o.stop(this.ctx.currentTime+dur);}catch(e){}},
+click(){this.beep(800,0.05,0.15,'square');},success(){this.beep(523,0.1);setTimeout(()=>this.beep(659,0.1),100);setTimeout(()=>this.beep(784,0.15),200);},
+fail(){this.beep(220,0.2,0.3,'sawtooth');},coin(){this.beep(1200,0.05);setTimeout(()=>this.beep(1500,0.05),50);},
+levelup(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.beep(f,0.15),i*100));},
+explosion(){this.beep(80,0.4,0.4,'sawtooth');}
+};
+
+/* === TOAST === */
+const Toast={show(t,type){const z=document.getElementById('toast-zone');
+const e=document.createElement('div');e.className='toast '+(type||'');e.textContent=t;
+z.appendChild(e);setTimeout(()=>e.remove(),2400);}};
+
+/* === FLOATING TEXT === */
+const Float={show(x,y,text,color){color=color||'#00ff88';const e=document.createElement('div');e.className='float';
+e.textContent=text;e.style.left=x+'px';e.style.top=y+'px';e.style.color=color;
+document.body.appendChild(e);setTimeout(()=>e.remove(),1500);}};
+
+/* === CONFETTI === */
+const Confetti={burst(x,y,n){n=n||30;for(let i=0;i<n;i++){const e=document.createElement('div');e.className='confetti';
+const c=pick(['#ff007a','#00f0ff','#ffe600','#00ff88','#b400ff']);
+e.style.background=c;e.style.left=(x+ri(-30,30))+'px';e.style.top=y+'px';
+e.style.animationDuration=(ri(15,30)/10)+'s';e.style.transform='rotate('+ri(0,360)+'deg)';
+document.body.appendChild(e);setTimeout(()=>e.remove(),2500);}}};
+
+/* === 50 ACHIEVEMENTS === */
+const ACHS=[
+{code:'FIRST_GAME',ic:'\uD83C\uDFAE',ti:'First Step',de:'Play your first game',rw:'+50 +20 XP',cond:d=>d.stats.gamesPlayed>=1},
+{code:'GAMES_10',ic:'\uD83C\uDFAF',ti:'Decade',de:'Play 10 games',rw:'+100',cond:d=>d.stats.gamesPlayed>=10},
+{code:'GAMES_100',ic:'\uD83D\uDCAF',ti:'Century',de:'Play 100 games',rw:'+500 +5',cond:d=>d.stats.gamesPlayed>=100},
+{code:'GAMES_500',ic:'\uD83C\uDFC6',ti:'Veteran',de:'Play 500 games',rw:'+2000 +50 +VIP',cond:d=>d.stats.gamesPlayed>=500},
+{code:'WINS_10',ic:'\uD83E\uDD47',ti:'Winner',de:'Win 10 games',rw:'+200',cond:d=>d.stats.wins>=10},
+{code:'WINS_100',ic:'\uD83D\uDC51',ti:'Champion',de:'Win 100 games',rw:'+1000',cond:d=>d.stats.wins>=100},
+{code:'SCORE_1K',ic:'\u2B50',ti:'1K Club',de:'Score 1000',rw:'+100',cond:d=>d.stats.highestScore>=1000},
+{code:'SCORE_10K',ic:'\uD83C\uDF1F',ti:'10K Club',de:'Score 10000',rw:'+500',cond:d=>d.stats.highestScore>=10000},
+{code:'SCORE_100K',ic:'\uD83D\uDCAB',ti:'100K',de:'Score 100000',rw:'+5000 +10',cond:d=>d.stats.highestScore>=100000},
+{code:'STREAK_3',ic:'\uD83D\uDD25',ti:'3-Day Streak',de:'3-day login',rw:'+50',cond:d=>d.streak>=3},
+{code:'STREAK_7',ic:'\uD83C\uDF0B',ti:'Week Streak',de:'7-day login',rw:'+200',cond:d=>d.streak>=7},
+{code:'STREAK_30',ic:'\uD83C\uDF1F',ti:'Month Streak',de:'30-day',rw:'+1000 +VIP',cond:d=>d.streak>=30},
+{code:'LVL_5',ic:'5\uFE0F\u20E3',ti:'Level 5',de:'Reach Lvl 5',rw:'+100',cond:d=>d.level>=5},
+{code:'LVL_10',ic:'\uD83D\uDD1F',ti:'Level 10',de:'Reach Lvl 10',rw:'+300',cond:d=>d.level>=10},
+{code:'LVL_25',ic:'\uD83D\uDC8E',ti:'Level 25',de:'Reach Lvl 25',rw:'+1500 +5',cond:d=>d.level>=25},
+{code:'LVL_50',ic:'\uD83D\uDC51',ti:'Level 50',de:'Reach Lvl 50',rw:'+5000 +20',cond:d=>d.level>=50},
+{code:'COINS_1K',ic:'\uD83E\uDE99',ti:'Rich',de:'Earn 1000 coins',rw:'+100',cond:d=>d.stats.totalCoins>=1000},
+{code:'COINS_10K',ic:'\uD83D\uDCB0',ti:'Wealthy',de:'Earn 10000',rw:'+500',cond:d=>d.stats.totalCoins>=10000},
+{code:'COINS_100K',ic:'\uD83C\uDFE6',ti:'Tycoon',de:'Earn 100000',rw:'+5000 +10',cond:d=>d.stats.totalCoins>=100000},
+{code:'DIAMONDS_10',ic:'\uD83D\uDC8E',ti:'Gem Collector',de:'Earn 10 diamonds',rw:'+100',cond:d=>d.stats.totalDiamonds>=10},
+{code:'DIAMONDS_100',ic:'\uD83D\uDCA0',ti:'Diamond Lord',de:'Earn 100 diamonds',rw:'+1000',cond:d=>d.stats.totalDiamonds>=100},
+{code:'RANK_SILVER',ic:'\uD83E\uDD48',ti:'Silver',de:'Reach Silver',rw:'+200',cond:d=>['Silver','Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_GOLD',ic:'\uD83E\uDD47',ti:'Gold',de:'Reach Gold',rw:'+500',cond:d=>['Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_PLATINUM',ic:'\uD83D\uDCA0',ti:'Platinum',de:'Reach Platinum',rw:'+1000 +2',cond:d=>['Platinum','Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_DIAMOND',ic:'\uD83D\uDC8E',ti:'Diamond',de:'Reach Diamond',rw:'+2500 +5',cond:d=>['Diamond','Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_MASTER',ic:'\uD83C\uDF96',ti:'Master',de:'Reach Master',rw:'+5000 +10',cond:d=>['Master','Grandmaster','Legend','Immortal'].includes(d.rank)},
+{code:'RANK_LEGEND',ic:'\uD83C\uDF1F',ti:'Legend',de:'Reach Legend',rw:'+10000 +25 +VIP',cond:d=>['Legend','Immortal'].includes(d.rank)},
+{code:'RANK_IMMORTAL',ic:'\u26A1',ti:'Immortal',de:'Reach Immortal!',rw:'+50000 +100 +VIP',cond:d=>d.rank==='Immortal'},
+{code:'LUCKY_SPIN',ic:'\uD83C\uDFB0',ti:'Spinner',de:'Spin wheel 10 times',rw:'+100',cond:d=>(d.spinCount||0)>=10},
+{code:'SNAKE_MASTER',ic:'\uD83D\uDC0D',ti:'Snake Master',de:'500 in Snake',rw:'+200',cond:d=>(d.bestScores.snake||0)>=500},
+{code:'TETRIS_MASTER',ic:'\uD83E\uDDF1',ti:'Tetris Master',de:'5000 in Tetris',rw:'+300',cond:d=>(d.bestScores.tetris||0)>=5000},
+{code:'PUZZLE_MASTER',ic:'\uD83E\uDDE9',ti:'Puzzle Master',de:'10000 in 2048',rw:'+500',cond:d=>(d.bestScores['2048']||0)>=10000},
+{code:'MEMORY_MASTER',ic:'\uD83E\uDDE0',ti:'Memory Master',de:'500 in Memory',rw:'+200',cond:d=>(d.bestScores.memory||0)>=500},
+{code:'MINES_MASTER',ic:'\uD83D\uDCA3',ti:'Minesweeper Pro',de:'500 in Mines',rw:'+500',cond:d=>(d.bestScores.minesweeper||0)>=500},
+{code:'COMBO_5',ic:'\u26A1',ti:'Combo x5',de:'5-combo',rw:'+100',cond:d=>d.stats.combos>=5},
+{code:'COMBO_20',ic:'\uD83C\uDF2A',ti:'Combo x20',de:'20-combo',rw:'+500 +1',cond:d=>d.stats.combos>=20},
+{code:'PURCHASE_FIRST',ic:'\uD83D\uDED2',ti:'First Purchase',de:'Buy first item',rw:'+50',cond:d=>(d.shopCount||0)>=1},
+{code:'VIP_BUYER',ic:'\uD83D\uDC8E',ti:'VIP',de:'Become VIP',rw:'+500',cond:d=>d.vip},
+{code:'SHOP_10',ic:'\uD83C\uDFEA',ti:'Shopaholic',de:'Buy 10 items',rw:'+200',cond:d=>(d.shopCount||0)>=10},
+{code:'SECRET_FOUND',ic:'\uD83E\uDD2B',ti:'Secret Finder',de:'3 secret codes',rw:'+500 +2',cond:d=>d.secretCodes.length>=3},
+{code:'SECRET_MASTER',ic:'\uD83D\uDD75',ti:'Easter Hunter',de:'All secrets',rw:'+5000',cond:d=>d.secretCodes.length>=10},
+{code:'THEME_COLLECTOR',ic:'\uD83C\uDFA8',ti:'Theme Lover',de:'5 themes',rw:'+200',cond:d=>d.ownedThemes.length>=5},
+{code:'BATTLE_PASS_50',ic:'\uD83C\uDFAB',ti:'BP Half',de:'BP level 50',rw:'+1000',cond:d=>(d.battlePass.xp/100)>=50},
+{code:'BATTLE_PASS_100',ic:'\uD83C\uDFC6',ti:'BP Complete',de:'BP level 100',rw:'+5000 +10',cond:d=>(d.battlePass.xp/100)>=100},
+{code:'NIGHT_OWL',ic:'\uD83E\uDD89',ti:'Night Owl',de:'Play 2-5 AM',rw:'+100',cond:()=>{const h=new Date().getHours();return h>=2&&h<5;}},
+{code:'EARLY_BIRD',ic:'\uD83D\uDC26',ti:'Early Bird',de:'Play 5-7 AM',rw:'+100',cond:()=>{const h=new Date().getHours();return h>=5&&h<7;}},
+{code:'HOARDER',ic:'\uD83D\uDC09',ti:'Hoarder',de:'10000 coins at once',rw:'+1000',cond:d=>d.coins>=10000},
+{code:'LUCKY_JACKPOT',ic:'\uD83D\uDCB0',ti:'Jackpot!',de:'Hit jackpot',rw:'+1000',cond:d=>d.luckyJackpot},
+{code:'MARATHON',ic:'\uD83C\uDFC3',ti:'Marathon',de:'Play 1 hour',rw:'+500',cond:d=>d.stats.playTime>=3600},
+{code:'HIDDEN_GAME',ic:'\uD83D\uDD13',ti:'Hidden Master',de:'Unlock hidden games',rw:'+1000 +5',cond:d=>d.hiddenGamesUnlocked},
+{code:'PET_OWNER',ic:'\uD83D\uDC3E',ti:'Pet Owner',de:'Buy a pet',rw:'+100',cond:d=>d.ownedPets.length>=1},
+{code:'GAMER',ic:'\uD83C\uDFAE',ti:'True Gamer',de:'10 games',rw:'+500',cond:d=>Object.keys(d.stats.perGame||{}).length>=10},
+];
+const AchSys={
+check(){let n=0;ACHS.forEach(a=>{if(!Store.d.achievements[a.code]&&a.cond(Store.d)){
+Store.d.achievements[a.code]={date:Date.now()};const r=a.rw.match(/\+(\d+)\s*([\uD83E\uDE99\uD83D\uDC8E]|\d)?/);
+if(r){if(r[2]==='\uD83E\uDE99'){Store.d.coins+=+r[1];Store.d.stats.totalCoins+=+r[1];}
+else if(r[2]==='\uD83D\uDC8E'){Store.d.diamonds+=+r[1];Store.d.stats.totalDiamonds+=+r[1];}
+else Store.d.xp+=+r[1];}n++;UI.toastUnlocked(a);}});
+if(n>0){Store.save();Player.checkRank();}}
+};
