@@ -1,0 +1,154 @@
+/* === PLAYER === */
+const Player={
+xpNeeded(l){return 100+l*50;},
+addXP(n){const mult=Store.d.vip?2:1;const amt=Math.floor(n*mult);
+Store.d.xp+=amt;Store.d.stats.xpEarned+=amt;
+let needed=this.xpNeeded(Store.d.level);
+while(Store.d.xp>=needed){Store.d.xp-=needed;Store.d.level++;needed=this.xpNeeded(Store.d.level);
+Audio.levelup();Confetti.burst(innerWidth/2,innerHeight/2,40);Toast.show('\uD83C\uDF89 LEVEL UP! \u2192 Lvl '+Store.d.level,'ok');}
+this.checkRank();Store.save();UI.updateTop();},
+addCoins(n){const mult=Store.d.vip?2:1;const amt=Math.floor(n*mult);
+Store.d.coins+=amt;Store.d.stats.totalCoins+=amt;
+Float.show(innerWidth/2,innerHeight/3,'+'+amt+' \uD83E\uDE99','#ffe600');
+Audio.coin();Store.save();UI.updateTop();},
+addDiamonds(n){Store.d.diamonds+=n;Store.d.stats.totalDiamonds+=n;
+Float.show(innerWidth/2,innerHeight/3+30,'+'+n+' \uD83D\uDC8E','#00f0ff');Store.save();UI.updateTop();},
+addScore(game,score){Store.d.stats.gamesPlayed++;Store.d.stats.perGame[game]=(Store.d.stats.perGame[game]||0)+1;
+if(!Store.d.bestScores[game]||score>Store.d.bestScores[game])Store.d.bestScores[game]=score;
+if(score>Store.d.stats.highestScore)Store.d.stats.highestScore=score;
+Store.d.stats.totalScore+=score;Daily.progressQuest('play',1);Daily.progressQuest('win',1);Daily.progressQuest('score',{game,score});
+Store.save();UI.updateTop();AchSys.check();},
+checkRank(){const xp=Store.d.level*500+Store.d.stats.xpEarned;
+const ranks=['Bronze','Silver','Gold','Platinum','Diamond','Master','Grandmaster','Legend','Immortal'];
+const reqs=[0,1000,5000,15000,40000,100000,250000,500000,1000000];let nr='Bronze';
+for(let i=0;i<reqs.length;i++)if(xp>=reqs[i])nr=ranks[i];
+if(nr!==Store.d.rank){Store.d.rank=nr;Toast.show('\uD83C\uDFC6 RANK UP! \u2192 '+nr,'ok');Audio.levelup();Confetti.burst(innerWidth/2,innerHeight/2,60);}
+Store.save();},
+spendEnergy(n){if(Store.d.energy<n){Toast.show('\u274C No energy!','err');return false;}
+Store.d.energy-=n;Store.d.energyTime=Date.now();Store.save();UI.updateTop();return true;},
+tickEnergy(){const now=Date.now();const elapsed=(now-Store.d.energyTime)/1000;
+const regen=Math.floor(elapsed/Store.d.energyRegen);
+if(regen>0){Store.d.energy=Math.min(Store.d.energyMax,Store.d.energy+regen);
+Store.d.energyTime=now;Store.save();UI.updateTop();}}
+};
+
+/* === DAILY === */
+const Daily={
+checkStreak(){const now=Date.now();const day=86400000;
+if(!Store.d.lastLogin)Store.d.streak=1;
+else if(now-Store.d.lastLogin>=day-3600000&&now-Store.d.lastLogin<day*2)Store.d.streak++;
+else if(now-Store.d.lastLogin>=day*2)Store.d.streak=1;
+Store.d.lastLogin=now;Store.save();},
+canClaim(){return Date.now()-Store.d.lastBonus>=86400000;},
+claim(){if(!this.canClaim()){const rem=86400-Math.floor((Date.now()-Store.d.lastBonus)/1000);
+const h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60);
+Toast.show('\u23F1 Next: '+h+'h '+m+'m','warn');return;}
+const r=50+Store.d.streak*20;Store.d.coins+=r;Store.d.stats.totalCoins+=r;
+Store.d.xp+=10;Store.d.lastBonus=Date.now();Store.save();Audio.success();Confetti.burst(innerWidth/2,innerHeight/2,30);
+Toast.show('\uD83C\uDF81 +'+r+' (Streak: '+(Store.d.streak+1)+')','ok');Store.d.streak++;Store.save();UI.updateTop();AchSys.check();},
+genQuests(){if(Date.now()-Store.d.lastQuestGen<86400000&&Store.d.dailyQuests.length)return;
+const games=Object.keys(Store.d.stats.perGame||{});const g=games.length?pick(games):'snake';
+Store.d.dailyQuests=[{id:1,desc:'Play 3 games',cur:0,goal:3,rw:'+100 +30 XP',done:false},
+{id:2,desc:'Score 500 in '+g,cur:Store.d.bestScores[g]||0,goal:500,rw:'+150 +1',done:false},
+{id:3,desc:'Win 1 game',cur:0,goal:1,rw:'+80',done:false}];
+Store.d.lastQuestGen=Date.now();Store.save();},
+progressQuest(type,val){this.genQuests();Store.d.dailyQuests.forEach(q=>{if(q.done)return;
+if(type==='play'&&(q.id===1||q.id===3)){q.cur+=val;if(q.cur>=q.goal)this._done(q);}
+else if(type==='win'&&q.id===3){q.cur+=val;if(q.cur>=q.goal)this._done(q);}
+else if(type==='score'&&val&&val.game){const m=q.desc.match(/in (\w+)/);if(m&&m[1]===val.game){q.cur=Math.max(q.cur,val.score);if(q.cur>=q.goal)this._done(q);}}});Store.save();},
+_done(q){q.done=true;Toast.show('\u2705 Quest: '+q.rw,'ok');Audio.success();
+q.rw.match(/\+(\d+)\s*([\uD83E\uDE99\uD83D\uDC8E])/g)?.forEach(r=>{const m=r.match(/\+(\d+)\s*([\uD83E\uDE99\uD83D\uDC8E])/);
+if(m[2]==='\uD83E\uDE99'){Store.d.coins+=+m[1];Store.d.stats.totalCoins+=+m[1];}
+else{Store.d.diamonds+=+m[1];Store.d.stats.totalDiamonds+=+m[1];}});UI.updateTop();}
+};
+
+/* === THEMES === */
+const THEMES=[
+{id:'cyberpunk',nm:'Cyberpunk',ic:'\uD83C\uDF03',cost:0,colors:['#050018','#0a0028','#140030'],accent:'#b400ff',sec:'#00f0ff'},
+{id:'glass',nm:'Glass',ic:'\uD83E\uDE9F',cost:500,colors:['#000018','#001028','#002040'],accent:'#00aaff',sec:'#ffffff'},
+{id:'dark',nm:'Pure Dark',ic:'\uD83C\uDF11',cost:300,colors:['#000000','#0a0a0a','#1a1a1a'],accent:'#888888',sec:'#cccccc'},
+{id:'blood',nm:'Blood',ic:'\uD83E\uDE78',cost:800,colors:['#0a0000','#1a0008','#280010'],accent:'#ff0044',sec:'#ff8800'},
+{id:'sunset',nm:'Sunset',ic:'\uD83C\uDF05',cost:600,colors:['#0a0028','#280050','#500070'],accent:'#ff8800',sec:'#ffe600'},
+{id:'arctic',nm:'Arctic',ic:'\u2744\uFE0F',cost:700,colors:['#001028','#003060','#0060a0'],accent:'#00f0ff',sec:'#ffffff'},
+{id:'galaxy',nm:'Galaxy',ic:'\uD83C\uDF0C',cost:1200,colors:['#000020','#0a0040','#200080'],accent:'#ff00ff',sec:'#8000ff'},
+{id:'ocean',nm:'Ocean',ic:'\uD83C\uDF0A',cost:600,colors:['#001028','#003050','#0060a0'],accent:'#00ccff',sec:'#00ff88'},
+{id:'forest',nm:'Forest',ic:'\uD83C\uDF32',cost:600,colors:['#001a08','#003010','#005020'],accent:'#00ff88',sec:'#88ff44'},
+{id:'fire',nm:'Fire',ic:'\uD83D\uDD25',cost:700,colors:['#1a0000','#280800','#401000'],accent:'#ff4500',sec:'#ffd700'},
+{id:'neon',nm:'Neon City',ic:'\uD83C\uDF06',cost:1500,colors:['#0a0028','#200050','#400080'],accent:'#ff00ff',sec:'#00ffff'},
+];
+const ThemeSys={
+apply(id){const t=THEMES.find(x=>x.id===id);if(!t)return;
+const r=document.documentElement.style;r.setProperty('--bg',t.colors[0]);r.setProperty('--bg2',t.colors[1]);
+r.setProperty('--bg3',t.colors[2]);r.setProperty('--neon',t.accent);r.setProperty('--n2',t.sec);
+Store.d.currentTheme=id;Store.save();},
+buy(id){const t=THEMES.find(x=>x.id===id);if(!t)return;
+if(Store.d.ownedThemes.includes(id))return Toast.show('\u274C Owned','err');
+if(Store.d.coins<t.cost)return Toast.show('\u274C Need '+fmt(t.cost)+' \uD83E\uDE99','err');
+Store.d.coins-=t.cost;Store.d.ownedThemes.push(id);Store.d.shopCount=(Store.d.shopCount||0)+1;
+Store.save();UI.updateTop();Audio.success();Toast.show('\u2705 Theme unlocked!','ok');AchSys.check();}
+};
+
+/* === BG PARTICLES === */
+const BgFx={
+init(){this.canvas=$('#bgCanvas');this.ctx=this.canvas.getContext('2d');this.resize();
+this.particles=[];for(let i=0;i<50;i++)this.particles.push(this.makeP());
+this.lines=[];for(let i=0;i<12;i++)this.lines.push({y:rand(0,innerHeight),s:rand(0.2,1.2)});
+this.loop();window.addEventListener('resize',()=>this.resize());},
+resize(){this.canvas.width=innerWidth;this.canvas.height=innerHeight;},
+makeP(){return{x:rand(0,innerWidth),y:rand(0,innerHeight),s:rand(1,3),vx:rand(-0.3,0.3),vy:rand(-0.5,-0.1),a:rand(0.3,1),c:pick(['#b400ff','#00f0ff','#ff007a','#ffe600'])};},
+loop(){if(Store.d.lowPower){requestAnimationFrame(()=>this.loop());return;}
+this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+this.lines.forEach(l=>{l.y+=l.s;if(l.y>innerHeight)l.y=-10;
+this.ctx.strokeStyle='rgba(180,0,255,.08)';this.ctx.lineWidth=1;
+this.ctx.beginPath();this.ctx.moveTo(0,l.y);this.ctx.lineTo(innerWidth,l.y);this.ctx.stroke();});
+this.ctx.strokeStyle='rgba(180,0,255,.04)';
+for(let i=0;i<innerWidth;i+=50){this.ctx.beginPath();this.ctx.moveTo(i,0);this.ctx.lineTo(i,innerHeight);this.ctx.stroke();}
+for(let i=0;i<innerHeight;i+=50){this.ctx.beginPath();this.ctx.moveTo(0,i);this.ctx.lineTo(innerWidth,i);this.ctx.stroke();}
+this.particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;
+if(p.y<0)p.y=innerHeight;if(p.x<0)p.x=innerWidth;if(p.x>innerWidth)p.x=0;
+this.ctx.fillStyle=p.c;this.ctx.globalAlpha=p.a;this.ctx.shadowBlur=10;this.ctx.shadowColor=p.c;
+this.ctx.beginPath();this.ctx.arc(p.x,p.y,p.s,0,Math.PI*2);this.ctx.fill();});
+this.ctx.globalAlpha=1;this.ctx.shadowBlur=0;
+requestAnimationFrame(()=>this.loop());}
+};
+
+/* === LUCKY WHEEL === */
+const WHEEL_REWARDS=[
+{t:'\uD83E\uDE99 100',v:100,tp:'coin',w:20},{t:'\uD83E\uDE99 250',v:250,tp:'coin',w:15},
+{t:'\uD83E\uDE99 500',v:500,tp:'coin',w:8},{t:'\uD83D\uDC8E 5',v:5,tp:'dmd',w:10},
+{t:'\uD83D\uDC8E 20',v:20,tp:'dmd',w:3},{t:'\uD83C\uDF1F 100 XP',v:100,tp:'xp',w:12},
+{t:'\uD83C\uDF81 Jackpot',v:'jp',tp:'jp',w:1},{t:'\uD83E\uDE99 50',v:50,tp:'coin',w:25},
+{t:'\u274C Miss',v:0,tp:'miss',w:5}
+];
+const Wheel={
+canSpin(){return Date.now()-Store.d.lastSpin>=3600000;},
+spin(){if(!this.canSpin()){const rem=3600-Math.floor((Date.now()-Store.d.lastSpin)/1000);
+Toast.show('\u23F1 '+Math.floor(rem/60)+'m '+(rem%60)+'s','warn');return;}
+const totalW=WHEEL_REWARDS.reduce((s,r)=>s+r.w,0);let r=Math.random()*totalW,picked=null;
+for(const x of WHEEL_REWARDS){if(r<x.w){picked=x;break;}r-=x.w;}
+Store.d.lastSpin=Date.now();Store.d.spinCount=(Store.d.spinCount||0)+1;
+if(picked.tp==='coin')Player.addCoins(picked.v,'wheel');
+else if(picked.tp==='dmd')Player.addDiamonds(picked.v,'wheel');
+else if(picked.tp==='xp')Player.addXP(picked.v);
+else if(picked.tp==='jp'){Player.addCoins(2000,'jackpot');Player.addDiamonds(10,'jackpot');
+Store.d.luckyJackpot=true;Toast.show('\uD83C\uDF89 JACKPOT! +2000 +10','ok');Confetti.burst(innerWidth/2,innerHeight/2,80);}
+else Toast.show('\uD83D\uDCA8 Miss!','warn');AchSys.check();}
+};
+
+/* === BATTLE PASS === */
+const BP={
+levels(){const out=[];for(let i=1;i<=100;i++)out.push({lvl:i,xp:i*100,
+free:i%5===0?{c:50+i*10}:null,premium:i%3===0?{c:100+i*20,d:1}:null});return out;},
+addXP(n){Store.d.battlePass.xp+=n;if(Store.d.battlePass.xp>10000)Store.d.battlePass.xp=10000;Store.save();AchSys.check();},
+claim(lvl,type){const lvlData=this.levels()[lvl-1];if(!lvlData)return;
+const reward=type==='free'?lvlData.free:lvlData.premium;if(!reward)return;
+const key=lvl+'-'+type;if(Store.d.battlePass.claimed.includes(key))return Toast.show('\u274C Claimed','err');
+if(type==='premium'&&!Store.d.battlePass.premium)return Toast.show('\uD83D\uDC8E Need Premium','err');
+if(Store.d.battlePass.xp<lvlData.xp)return Toast.show('\u274C Need '+(lvlData.xp-Store.d.battlePass.xp)+' more BP XP','err');
+if(reward.c)Player.addCoins(reward.c,'bp');if(reward.d)Player.addDiamonds(reward.d,'bp');
+Store.d.battlePass.claimed.push(key);Store.save();Audio.success();UI.show('battlepass');}
+};
+
+/* === MODAL === */
+const Modal={show(html){$('#mbox').innerHTML='<div class="x" onclick="Modal.hide()">\u2715</div>'+html;
+$('#modal').classList.remove('hide');},hide(){$('#modal').classList.add('hide');}};
